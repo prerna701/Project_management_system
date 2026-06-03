@@ -10,6 +10,7 @@ import {
   Patch,
   Post,
   Query,
+  SetMetadata,
   UseGuards,
 } from '@nestjs/common';
 import { AuthGuard } from '@nestjs/passport';
@@ -28,6 +29,7 @@ export class PermissionsController {
 
   @Get()
   @ApiQuery({ name: 'module', required: false, type: String })
+  @SetMetadata('abilities', [['browse', 'permissions']])
   @HttpCode(HttpStatus.OK)
   async findAll(@Query('module') module?: string) {
     const perms = module
@@ -37,6 +39,7 @@ export class PermissionsController {
   }
 
   @Get(':id')
+  @SetMetadata('abilities', [['read', 'permissions']])
   @HttpCode(HttpStatus.OK)
   async findOne(@Param('id', ParseIntPipe) id: number) {
     const perm = await this.permissionsService.findById(id);
@@ -44,6 +47,7 @@ export class PermissionsController {
   }
 
   @Post()
+  @SetMetadata('abilities', [['add', 'permissions']])
   @HttpCode(HttpStatus.CREATED)
   async create(@Body() dto: CreatePermissionDto) {
     const perm = await this.permissionsService.create(dto);
@@ -51,6 +55,7 @@ export class PermissionsController {
   }
 
   @Patch(':id')
+  @SetMetadata('abilities', [['edit', 'permissions']])
   @HttpCode(HttpStatus.OK)
   async update(
     @Param('id', ParseIntPipe) id: number,
@@ -61,6 +66,7 @@ export class PermissionsController {
   }
 
   @Delete(':id')
+  @SetMetadata('abilities', [['delete', 'permissions']])
   @HttpCode(HttpStatus.NO_CONTENT)
   async remove(@Param('id', ParseIntPipe) id: number): Promise<void> {
     await this.permissionsService.remove(id);
