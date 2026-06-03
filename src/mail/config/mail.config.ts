@@ -1,0 +1,67 @@
+import { registerAs } from '@nestjs/config';
+import {
+  IsBoolean,
+  IsInt,
+  IsOptional,
+  IsString,
+  Max,
+  Min,
+} from 'class-validator';
+import validateConfig from '../../common/utils/validate-config';
+import { MailConfig } from './mail-config.type';
+
+class EnvironmentVariablesValidator {
+  @IsString()
+  @IsOptional()
+  MAIL_HOST: string;
+
+  @IsInt()
+  @Min(0)
+  @Max(65535)
+  @IsOptional()
+  MAIL_PORT: number;
+
+  @IsString()
+  @IsOptional()
+  MAIL_USER: string;
+
+  @IsString()
+  @IsOptional()
+  MAIL_PASSWORD: string;
+
+  @IsBoolean()
+  @IsOptional()
+  MAIL_IGNORE_TLS: boolean;
+
+  @IsBoolean()
+  @IsOptional()
+  MAIL_SECURE: boolean;
+
+  @IsBoolean()
+  @IsOptional()
+  MAIL_REQUIRE_TLS: boolean;
+
+  @IsString()
+  @IsOptional()
+  MAIL_DEFAULT_EMAIL: string;
+
+  @IsString()
+  @IsOptional()
+  MAIL_DEFAULT_NAME: string;
+}
+
+export default registerAs<MailConfig>('mail', () => {
+  validateConfig(process.env, EnvironmentVariablesValidator);
+
+  return {
+    port: process.env.MAIL_PORT ? parseInt(process.env.MAIL_PORT, 10) : 587,
+    host: process.env.MAIL_HOST,
+    user: process.env.MAIL_USER,
+    password: process.env.MAIL_PASSWORD,
+    defaultEmail: process.env.MAIL_DEFAULT_EMAIL,
+    defaultName: process.env.MAIL_DEFAULT_NAME,
+    ignoreTLS: process.env.MAIL_IGNORE_TLS === 'true',
+    secure: process.env.MAIL_SECURE === 'true',
+    requireTLS: process.env.MAIL_REQUIRE_TLS === 'true',
+  };
+});
