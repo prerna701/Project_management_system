@@ -26,6 +26,7 @@ import { CreateUserDto } from './dto/create-user.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
 import { UserQueryDto } from './dto/user-query.dto';
 import { AssignRoleDto } from './dto/assign-role.dto';
+import { AssignPermissionDto } from '../permissions/dto/assign-permission.dto';
 import { User } from './domain/user';
 import { CurrentUser } from '../common/decorators/current-user.decorator';
 import { RolesGuard } from '../roles/roles.guard';
@@ -137,6 +138,30 @@ export class UsersController {
   @SetMetadata('abilities', [['edit', 'users']])
   async removeRole(@Param('id') id: string, @Param('roleId') roleId: string): Promise<void> {
     await this.usersService.removeRole(id, Number(roleId));
+  }
+
+  @Post(':id/permissions')
+  @HttpCode(HttpStatus.OK)
+  @ApiParam({ name: 'id', type: String })
+  @SetMetadata('abilities', [['edit', 'users']])
+  async assignPermission(
+    @Param('id') id: string,
+    @Body() dto: AssignPermissionDto,
+  ): Promise<any> {
+    await this.usersService.assignPermission(id, dto.permissionId);
+    return createResponse('Permission assigned successfully', null);
+  }
+
+  @Delete(':id/permissions/:permissionId')
+  @HttpCode(HttpStatus.NO_CONTENT)
+  @ApiParam({ name: 'id', type: String })
+  @ApiParam({ name: 'permissionId', type: Number })
+  @SetMetadata('abilities', [['edit', 'users']])
+  async removePermission(
+    @Param('id') id: string,
+    @Param('permissionId') permissionId: string,
+  ): Promise<void> {
+    await this.usersService.removePermission(id, Number(permissionId));
   }
 
   @Get(':id/roles')

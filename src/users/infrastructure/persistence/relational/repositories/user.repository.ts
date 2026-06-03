@@ -150,4 +150,8 @@ export class RelationalUserRepository implements UserRepository {
       await this.userPermRepo.save({ userId, permissionId, resourceId, resourceType });
     }
   }
+
+  async removePermission(userId: string, permissionId: number): Promise<void> {
+    await this.userPermRepo.delete({ userId, permissionId });
+  }
 }

@@ -5,12 +5,15 @@ import { RoleEntity } from '../entities/role.entity';
 import { RoleRepository } from '../../role.repository';
 import { Role } from '../../../../domain/role';
 import { RoleMapper } from '../mappers/role.mapper';
+import { RolePermissionEntity } from '../../../../../users/infrastructure/persistence/relational/entities/role-permission.entity';
 
 @Injectable()
 export class RelationalRoleRepository implements RoleRepository {
   constructor(
     @InjectRepository(RoleEntity)
     private readonly roleRepository: Repository<RoleEntity>,
+    @InjectRepository(RolePermissionEntity)
+    private readonly rolePermissionRepository: Repository<RolePermissionEntity>,
   ) {}
 
   async findById(id: number): Promise<Role | null> {
@@ -36,5 +39,18 @@ export class RelationalRoleRepository implements RoleRepository {
 
   async remove(id: number): Promise<void> {
     await this.roleRepository.delete(id);
+  }
+
+  async assignPermission(roleId: number, permissionId: number): Promise<void> {
+    const existing = await this.rolePermissionRepository.findOne({
+      where: { roleId, permissionId },
+    });
+    if (!existing) {
+      await this.rolePermissionRepository.save({ roleId, permissionId });
+    }
+  }
+
+  async removePermission(roleId: number, permissionId: number): Promise<void> {
+    await this.rolePermissionRepository.delete({ roleId, permissionId });
   }
 }

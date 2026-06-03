@@ -19,4 +19,5 @@ export abstract class UserRepository {
   abstract assignRole(userId: string, roleId: number): Promise<void>;
   abstract removeRole(userId: string, roleId: number): Promise<void>;
   abstract assignPermission(userId: string, permissionId: number, resourceId?: string, resourceType?: string): Promise<void>;
+  abstract removePermission(userId: string, permissionId: number): Promise<void>;
 }

@@ -16,6 +16,7 @@ import { PaginationMetaDto } from '../common/dto/pagination-response.dto';
 import { TryCatch } from '../common/utils/try-catch.util';
 import { MailService } from '../mail/mail.service';
 import { AllConfigType } from '../config/config.type';
+import { PermissionsService } from '../permissions/permissions.service';
 
 @Injectable()
 export class UsersService {
@@ -23,6 +24,7 @@ export class UsersService {
     private readonly userRepository: UserRepository,
     private readonly mailService: MailService,
     private readonly configService: ConfigService<AllConfigType>,
+    private readonly permissionsService: PermissionsService,
   ) {}
 
   @TryCatch('Failed to create user')
@@ -98,6 +100,24 @@ export class UsersService {
 
   async removeRole(userId: string, roleId: number): Promise<void> {
     await this.userRepository.removeRole(userId, roleId);
+  }
+
+  @TryCatch('Failed to assign permission')
+  async assignPermission(userId: string, permissionId: number): Promise<void> {
+    const user = await this.findById(userId);
+    if (!user) throw new NotFoundException(`User #${userId} not found`);
+
+    await this.permissionsService.findById(permissionId);
+    await this.userRepository.assignPermission(userId, permissionId);
+  }
+
+  @TryCatch('Failed to remove permission')
+  async removePermission(userId: string, permissionId: number): Promise<void> {
+    const user = await this.findById(userId);
+    if (!user) throw new NotFoundException(`User #${userId} not found`);
+
+    await this.permissionsService.findById(permissionId);
+    await this.userRepository.removePermission(userId, permissionId);
   }
 
   async getUserRoles(userId: string): Promise<any[]> {
