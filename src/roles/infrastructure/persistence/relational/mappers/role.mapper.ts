@@ -6,13 +6,15 @@ export class RoleMapper {
     const role = new Role();
     role.id = raw.id;
     role.name = raw.name;
+    role.slug = raw.slug;
     return role;
   }
 
   static toPersistence(role: Role): RoleEntity {
     const entity = new RoleEntity();
-    entity.id = role.id;
+    if (role.id) entity.id = role.id;
     if (role.name) entity.name = role.name;
+    if (role.slug !== undefined) entity.slug = role.slug;
     return entity;
   }
 }

@@ -6,7 +6,7 @@ export class CreateRoles1748904000001 implements MigrationInterface {
   public async up(queryRunner: QueryRunner): Promise<void> {
     await queryRunner.query(`
       CREATE TABLE "roles" (
-        "id"   integer      NOT NULL,
+        "id"   SERIAL       NOT NULL,
         "name" varchar      NOT NULL,
         "slug" varchar,
         CONSTRAINT "PK_roles" PRIMARY KEY ("id")

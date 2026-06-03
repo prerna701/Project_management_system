@@ -22,6 +22,7 @@ import {
   ApiTags,
 } from '@nestjs/swagger';
 import { UsersService } from './users.service';
+import { ProjectsService } from '../projects/projects.service';
 import { CreateUserDto } from './dto/create-user.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
 import { UserQueryDto } from './dto/user-query.dto';
@@ -49,7 +50,10 @@ import { NullableType } from '../common/types/nullable.type';
 @ApiTags('Users')
 @Controller({ path: 'users', version: '1' })
 export class UsersController {
-  constructor(private readonly usersService: UsersService) {}
+  constructor(
+    private readonly usersService: UsersService,
+    private readonly projectsService: ProjectsService,
+  ) {}
 
   @AuditLog({
     module: 'Users',
@@ -178,5 +182,14 @@ export class UsersController {
   async getUserPermissions(@Param('id') id: string): Promise<any> {
     const perms = await this.usersService.getUserPermissions(id);
     return createResponse('User permissions fetched successfully', perms);
+  }
+
+  @Get(':id/projects')
+  @SetMetadata('abilities', [['browse', 'projects']])
+  @HttpCode(HttpStatus.OK)
+  @ApiParam({ name: 'id', type: String })
+  async getUserProjects(@Param('id') id: string): Promise<any> {
+    const projects = await this.projectsService.getProjectsByUser(id);
+    return createResponse('User projects fetched successfully', projects);
   }
 }

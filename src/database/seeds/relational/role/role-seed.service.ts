@@ -39,5 +39,9 @@ export class RoleSeedService {
       });
       console.log(`Role already exists, updated if needed: ${role.name}`);
     }
+
+    await this.roleRepo.query(
+      `SELECT setval(pg_get_serial_sequence('"roles"', 'id'), (SELECT MAX("id") FROM "roles"))`,
+    );
   }
 }

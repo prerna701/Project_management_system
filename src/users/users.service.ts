@@ -46,13 +46,19 @@ export class UsersService {
     }
 
     const user = await this.userRepository.create({
-      ...dto,
+      email: dto.email,
+      firstName: dto.firstName,
+      lastName: dto.lastName,
       password,
       provider: 'email',
       status: 'PENDING',
     });
 
     // Fire-and-forget — never fail user creation because of a mail error
+    if (dto.roleId) {
+      await this.assignRole(user.id, dto.roleId);
+    }
+
     this.mailService.sendWelcomeEmail(user).catch(() => null);
 
     return user;

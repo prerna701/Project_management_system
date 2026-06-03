@@ -6,4 +6,7 @@ export class Role {
 
   @ApiProperty({ type: String, example: 'Admin' })
   name?: string;
+
+  @ApiProperty({ type: String, example: 'admin' })
+  slug?: string;
 }

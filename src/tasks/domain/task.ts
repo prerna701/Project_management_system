@@ -1,0 +1,71 @@
+import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
+import { TaskPriority } from '../enums/task-priority.enum';
+import { TaskStatus } from '../enums/task-status.enum';
+
+export class Task {
+  @ApiProperty({ type: String })
+  id: string;
+
+  @ApiProperty()
+  projectId: string;
+
+  @ApiPropertyOptional()
+  milestoneId: string | null;
+
+  @ApiPropertyOptional()
+  parentTaskId: string | null;
+
+  @ApiProperty()
+  title: string;
+
+  @ApiPropertyOptional()
+  description: string | null;
+
+  @ApiPropertyOptional()
+  assigneeId: string | null;
+
+  @ApiPropertyOptional()
+  reporterId: string | null;
+
+  @ApiProperty({ enum: TaskPriority })
+  priority: TaskPriority;
+
+  @ApiProperty({ enum: TaskStatus })
+  status: TaskStatus;
+
+  @ApiPropertyOptional()
+  startDate: Date | null;
+
+  @ApiPropertyOptional()
+  dueDate: Date | null;
+
+  @ApiPropertyOptional()
+  estimatedHours: number | null;
+
+  @ApiProperty()
+  loggedHours: number;
+
+  @ApiProperty()
+  isBillable: boolean;
+
+  @ApiPropertyOptional({ type: [String] })
+  dependencies: string[];
+
+  @ApiPropertyOptional({ type: [String] })
+  attachments: string[];
+
+  @ApiPropertyOptional({ type: [String] })
+  labels: string[];
+
+  @ApiPropertyOptional({ type: [String], description: 'Checklist items (for subtasks)' })
+  checklist: string[];
+
+  @ApiProperty()
+  createdAt: Date;
+
+  @ApiProperty()
+  updatedAt: Date;
+
+  @ApiPropertyOptional()
+  deletedAt: Date | null;
+}

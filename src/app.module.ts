@@ -17,6 +17,14 @@ import { AuditLogsModule } from './audit-logs/audit-logs.module';
 import { HomeModule } from './home/home.module';
 import { RolesModule } from './roles/roles.module';
 import { PermissionsModule } from './permissions/permissions.module';
+import { TeamsModule } from './teams/teams.module';
+import { ProjectsModule } from './projects/projects.module';
+import { MilestonesModule } from './milestones/milestones.module';
+import { TasksModule } from './tasks/tasks.module';
+import { ProjectCommentsModule } from './project-comments/project-comments.module';
+import { ProjectActivitiesModule } from './project-activities/project-activities.module';
+import { InvitationTemplatesModule } from './invitation-templates/invitation-templates.module';
+import { TaskCommentsModule } from './task-comments/task-comments.module';
 import { CaslAbilityGuard } from './auth/guards/casl-ability.guard';
 
 const infrastructureDatabaseModule = TypeOrmModule.forRootAsync({
@@ -43,6 +51,14 @@ const infrastructureDatabaseModule = TypeOrmModule.forRootAsync({
     MailModule,
     MailerModule,
     AuditLogsModule,
+    TeamsModule,
+    ProjectsModule,
+    MilestonesModule,
+    TasksModule,
+    ProjectCommentsModule,
+    ProjectActivitiesModule,
+    InvitationTemplatesModule,
+    TaskCommentsModule,
     HomeModule,
   ],
   providers: [
