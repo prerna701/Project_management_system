@@ -194,14 +194,6 @@ export class AuthService {
   async logout(userJwtPayload: JwtPayloadType): Promise<void> {
     const user = await this.usersService.findById(userJwtPayload.id);
     if (!user) throw new UnauthorizedException();
-
-    const updatedUser = await this.usersService.update(user.id, {
-      status: 'PENDING',
-      otp: null,
-      otpExpiresAt: null,
-    });
-
-    await this.mailService.sendWelcomeEmail(updatedUser ?? user);
   }
 
   private async getTokensData(data: { id: string; role?: any }) {
