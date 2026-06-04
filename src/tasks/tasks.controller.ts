@@ -29,6 +29,8 @@ import { API_PAGE_LIMIT } from '../common/constants/common.constant';
 import { MilestonesService } from '../milestones/milestones.service';
 import { ApiProperty } from '@nestjs/swagger';
 import { IsNotEmpty, IsUUID } from 'class-validator';
+import { CurrentUser } from '../common/decorators/current-user.decorator';
+import { JwtPayloadType } from '../auth/strategies/types/jwt-payload.type';
 
 class CreateTaskWithProjectDto extends CreateTaskDto {
   @ApiProperty({ example: 'project-uuid' })
@@ -67,6 +69,15 @@ export class TasksController {
     return createResponse('Task fetched successfully', item);
   }
 
+  @Get('tasks/:id/timeline')
+  @SetMetadata('abilities', [['read', 'tasks']])
+  @HttpCode(HttpStatus.OK)
+  async getStatusTimeline(@Param('id') id: string) {
+    await this.service.findById(id);
+    const items = await this.service.getStatusHistory(id);
+    return createResponse('Task status timeline fetched successfully', items);
+  }
+
   @Get('tasks/:id/subtasks')
   @SetMetadata('abilities', [['browse', 'subtasks']])
 
@@ -94,6 +105,15 @@ export class TasksController {
     return createPaginatedResponse('Milestone tasks fetched successfully', items, meta);
   }
 
+  @Get('milestones/:milestoneId/tasks/summary')
+  @SetMetadata('abilities', [['read', 'milestones']])
+  @HttpCode(HttpStatus.OK)
+  async getMilestoneTaskSummary(@Param('milestoneId') milestoneId: string) {
+    await this.milestonesService.findById(milestoneId);
+    const summary = await this.service.getMilestoneSummary(milestoneId);
+    return createResponse('Milestone task summary fetched successfully', summary);
+  }
+
   @AuditLog({
     module: 'Tasks',
     entityName: '{entityName}',
@@ -107,12 +127,13 @@ export class TasksController {
   async createForMilestone(
     @Param('milestoneId') milestoneId: string,
     @Body() dto: CreateTaskDto,
+    @CurrentUser() currentUser: JwtPayloadType,
   ) {
     const milestone = await this.milestonesService.findById(milestoneId);
     const item = await this.service.createForMilestone(milestoneId, {
       ...dto,
       projectId: milestone.projectId,
-    });
+    }, currentUser.id);
     return createResponse('Task created successfully', item);
   }
 
@@ -127,8 +148,12 @@ export class TasksController {
   @SetMetadata('abilities', [['edit', 'tasks']])
 
   @HttpCode(HttpStatus.OK)
-  async update(@Param('id') id: string, @Body() dto: UpdateTaskDto) {
-    const item = await this.service.update(id, dto);
+  async update(
+    @Param('id') id: string,
+    @Body() dto: UpdateTaskDto,
+    @CurrentUser() currentUser: JwtPayloadType,
+  ) {
+    const item = await this.service.update(id, dto, currentUser.id);
     return createResponse('Task updated successfully', item);
   }
 
@@ -136,8 +161,11 @@ export class TasksController {
   @SetMetadata('abilities', [['delete', 'tasks']])
 
   @HttpCode(HttpStatus.NO_CONTENT)
-  async remove(@Param('id') id: string): Promise<void> {
-    await this.service.remove(id);
+  async remove(
+    @Param('id') id: string,
+    @CurrentUser() currentUser: JwtPayloadType,
+  ): Promise<void> {
+    await this.service.remove(id, currentUser.id);
   }
 
   @AuditLog({
@@ -150,8 +178,12 @@ export class TasksController {
   @SetMetadata('abilities', [['assign', 'tasks']])
 
   @HttpCode(HttpStatus.OK)
-  async assignTask(@Param('id') id: string, @Body() dto: AssignTaskDto) {
-    const item = await this.service.assignTask(id, dto);
+  async assignTask(
+    @Param('id') id: string,
+    @Body() dto: AssignTaskDto,
+    @CurrentUser() currentUser: JwtPayloadType,
+  ) {
+    const item = await this.service.assignTask(id, dto, currentUser.id);
     return createResponse('Task assigned successfully', item);
   }
 
@@ -165,8 +197,12 @@ export class TasksController {
   @SetMetadata('abilities', [['add', 'subtasks']])
 
   @HttpCode(HttpStatus.CREATED)
-  async createSubtask(@Param('id') id: string, @Body() dto: CreateSubtaskDto) {
-    const item = await this.service.createSubtask(id, dto);
+  async createSubtask(
+    @Param('id') id: string,
+    @Body() dto: CreateSubtaskDto,
+    @CurrentUser() currentUser: JwtPayloadType,
+  ) {
+    const item = await this.service.createSubtask(id, dto, currentUser.id);
     return createResponse('Subtask created successfully', item);
   }
 }

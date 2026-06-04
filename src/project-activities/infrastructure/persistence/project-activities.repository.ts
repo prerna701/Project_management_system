@@ -4,8 +4,13 @@ import { PaginationMetaDto } from '../../../common/dto/pagination-response.dto';
 
 export abstract class ProjectActivitiesRepository {
   abstract log(item: Omit<ProjectActivity, 'id' | 'createdAt'>): Promise<ProjectActivity>;
-  abstract findByProjectId(
-    projectId: string,
-    options: { paginationOptions: IPaginationOptions },
+  abstract findMany(
+    options: {
+      paginationOptions: IPaginationOptions;
+      projectId?: string;
+      milestoneId?: string;
+      taskId?: string;
+      subtaskId?: string;
+    },
   ): Promise<{ items: ProjectActivity[]; meta: PaginationMetaDto }>;
 }

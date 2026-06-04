@@ -9,10 +9,19 @@ import { IPaginationOptions } from '../common/types/pagination-options';
 import { PaginationMetaDto } from '../common/dto/pagination-response.dto';
 import { TaskPriority } from './enums/task-priority.enum';
 import { TaskStatus } from './enums/task-status.enum';
+import { TaskBillingType } from './enums/task-billing-type.enum';
+import { MilestonesService } from '../milestones/milestones.service';
+import { ProjectActivitiesService } from '../project-activities/project-activities.service';
+import { ActivityAction } from '../project-activities/enums/activity-action.enum';
+import { ActivityEntityType } from '../project-activities/enums/activity-entity-type.enum';
 
 @Injectable()
 export class TasksService {
-  constructor(private readonly repository: TasksRepository) {}
+  constructor(
+    private readonly repository: TasksRepository,
+    private readonly milestonesService: MilestonesService,
+    private readonly activitiesService: ProjectActivitiesService,
+  ) {}
 
   async findAll(
     paginationOptions?: IPaginationOptions,
@@ -38,25 +47,13 @@ export class TasksService {
     });
   }
 
-  async createForProject(projectId: string, dto: CreateTaskDto): Promise<Task> {
-    return this.repository.create({
+  async createForProject(projectId: string, dto: CreateTaskDto, actorId?: string): Promise<Task> {
+    const item = await this.repository.create({
+      ...this.buildTaskPayload(dto),
       projectId,
-      title: dto.title,
-      description: dto.description ?? null,
-      assigneeId: dto.assigneeId ?? null,
-      reporterId: dto.reporterId ?? null,
-      priority: dto.priority ?? TaskPriority.MEDIUM,
-      status: dto.status ?? TaskStatus.OPEN,
-      startDate: dto.startDate ? new Date(dto.startDate) : null,
-      dueDate: dto.dueDate ? new Date(dto.dueDate) : null,
-      estimatedHours: dto.estimatedHours ?? null,
-      loggedHours: 0,
-      isBillable: dto.isBillable ?? false,
-      dependencies: [],
-      attachments: [],
-      labels: dto.labels ?? [],
-      checklist: [],
     });
+    await this.logTaskCreated(item, actorId);
+    return item;
   }
 
   async findByMilestone(
@@ -88,71 +85,134 @@ export class TasksService {
     return item;
   }
 
-  async createForMilestone(milestoneId: string, dto: CreateTaskDto & { projectId: string }): Promise<Task> {
-    return this.repository.create({
+  async createForMilestone(
+    milestoneId: string,
+    dto: CreateTaskDto & { projectId: string },
+    actorId?: string,
+  ): Promise<Task> {
+    const item = await this.repository.create({
+      ...this.buildTaskPayload(dto),
       projectId: dto.projectId,
       milestoneId,
-      title: dto.title,
-      description: dto.description ?? null,
-      assigneeId: dto.assigneeId ?? null,
-      reporterId: dto.reporterId ?? null,
-      priority: dto.priority ?? TaskPriority.MEDIUM,
-      status: dto.status ?? TaskStatus.OPEN,
-      startDate: dto.startDate ? new Date(dto.startDate) : null,
-      dueDate: dto.dueDate ? new Date(dto.dueDate) : null,
-      estimatedHours: dto.estimatedHours ?? null,
-      loggedHours: 0,
-      isBillable: dto.isBillable ?? false,
-      dependencies: dto.dependencies ?? [],
-      attachments: dto.attachments ?? [],
-      labels: dto.labels ?? [],
-      checklist: [],
     });
+    await this.syncMilestoneCompletion(milestoneId);
+    await this.logTaskCreated(item, actorId);
+    return item;
   }
 
-  async update(id: string, dto: UpdateTaskDto): Promise<Task> {
+  async update(id: string, dto: UpdateTaskDto, actorId?: string): Promise<Task> {
+    const existing = await this.findById(id);
     const payload: Partial<Task> = {
       ...dto,
       startDate: dto.startDate !== undefined ? (dto.startDate ? new Date(dto.startDate) : null) : undefined,
       dueDate: dto.dueDate !== undefined ? (dto.dueDate ? new Date(dto.dueDate) : null) : undefined,
+      actualEndDate:
+        dto.actualEndDate !== undefined ? (dto.actualEndDate ? new Date(dto.actualEndDate) : null) : undefined,
     };
     const item = await this.repository.update(id, payload);
     if (!item) throw new NotFoundException(`Task #${id} not found`);
+    await this.syncMilestoneCompletion(item.milestoneId ?? existing.milestoneId);
+    if (dto.status && dto.status !== existing.status && actorId) {
+      await this.repository.recordStatusChange({
+        taskId: id,
+        fromStatus: existing.status,
+        toStatus: dto.status,
+        changedBy: actorId,
+        note: null,
+      });
+    }
+    await this.logTaskUpdated(existing, item, dto, actorId);
     return item;
   }
 
-  async remove(id: string): Promise<void> {
+  async remove(id: string, actorId?: string): Promise<void> {
+    const item = await this.findById(id);
     await this.repository.remove(id);
+    await this.syncMilestoneCompletion(item.milestoneId);
+    if (actorId) {
+      await this.activitiesService.log({
+        projectId: item.projectId,
+        milestoneId: item.milestoneId,
+        taskId: item.parentTaskId ? item.parentTaskId : item.id,
+        subtaskId: item.parentTaskId ? item.id : null,
+        actorId,
+        action: ActivityAction.DELETED,
+        entityType: item.parentTaskId ? ActivityEntityType.SUBTASK : ActivityEntityType.TASK,
+        entityId: item.id,
+        title: item.parentTaskId ? 'Subtask deleted' : 'Task deleted',
+        description: `${item.parentTaskId ? 'Subtask' : 'Task'} "${item.title}" was deleted`,
+      });
+    }
   }
 
-  async assignTask(id: string, dto: AssignTaskDto): Promise<Task> {
+  async assignTask(id: string, dto: AssignTaskDto, actorId?: string): Promise<Task> {
+    const existing = await this.findById(id);
     const item = await this.repository.update(id, { assigneeId: dto.assigneeId });
     if (!item) throw new NotFoundException(`Task #${id} not found`);
+    if (actorId) {
+      await this.activitiesService.log({
+        projectId: item.projectId,
+        milestoneId: item.milestoneId,
+        taskId: item.parentTaskId ? item.parentTaskId : item.id,
+        subtaskId: item.parentTaskId ? item.id : null,
+        actorId,
+        action: ActivityAction.ASSIGNED,
+        entityType: item.parentTaskId ? ActivityEntityType.SUBTASK : ActivityEntityType.TASK,
+        entityId: item.id,
+        title: item.parentTaskId ? 'Subtask assigned' : 'Task assigned',
+        description: `${item.parentTaskId ? 'Subtask' : 'Task'} "${item.title}" was assigned`,
+        oldValue: existing.assigneeId,
+        newValue: item.assigneeId,
+      });
+    }
     return item;
   }
 
-  async createSubtask(parentTaskId: string, dto: CreateSubtaskDto): Promise<Task> {
+  async createSubtask(parentTaskId: string, dto: CreateSubtaskDto, actorId?: string): Promise<Task> {
     const parent = await this.findById(parentTaskId);
-    return this.repository.create({
+    const item = await this.repository.create({
       projectId: parent.projectId,
       milestoneId: parent.milestoneId,
       parentTaskId,
+      teamId: parent.teamId,
       title: dto.title,
       description: null,
       assigneeId: dto.assigneeId ?? null,
       reporterId: null,
+      ownerId: dto.assigneeId ?? null,
+      createdBy: null,
       priority: TaskPriority.MEDIUM,
       status: dto.status ?? TaskStatus.OPEN,
       startDate: null,
       dueDate: dto.dueDate ? new Date(dto.dueDate) : null,
+      actualEndDate: null,
       estimatedHours: null,
+      workHours: null,
       loggedHours: 0,
+      timeLogTotal: 0,
+      completionPercentage: dto.status === TaskStatus.DONE ? 100 : 0,
       isBillable: parent.isBillable,
+      billingType: parent.billingType,
       dependencies: [],
       attachments: [],
       labels: [],
       checklist: dto.checklist ?? [],
     });
+    if (actorId) {
+      await this.activitiesService.log({
+        projectId: item.projectId,
+        milestoneId: item.milestoneId,
+        taskId: parentTaskId,
+        subtaskId: item.id,
+        actorId,
+        action: ActivityAction.CREATED,
+        entityType: ActivityEntityType.SUBTASK,
+        entityId: item.id,
+        title: 'Subtask created',
+        description: `Subtask "${item.title}" was created under task "${parent.title}"`,
+      });
+    }
+    return item;
   }
 
   async reassignOpenTasks(fromUserId: string, toUserId: string): Promise<void> {
@@ -167,5 +227,111 @@ export class TasksService {
     const { total, completed } = await this.repository.countByProjectId(projectId);
     if (total === 0) return 0;
     return Math.round((completed / total) * 100);
+  }
+
+  async getStatusHistory(taskId: string) {
+    return this.repository.findStatusHistory(taskId);
+  }
+
+  async getMilestoneSummary(
+    milestoneId: string,
+  ): Promise<{ total: number; completed: number; completionPercentage: number; byStatus: Record<string, number> }> {
+    const counts = await this.repository.countByMilestoneId(milestoneId);
+    return {
+      ...counts,
+      completionPercentage: this.calculateCompletionPercentage(counts.total, counts.completed),
+    };
+  }
+
+  private buildTaskPayload(dto: CreateTaskDto): Partial<Task> {
+    const isBillable = dto.isBillable ?? dto.billingType === TaskBillingType.BILLABLE;
+
+    return {
+      title: dto.title,
+      description: dto.description ?? null,
+      teamId: dto.teamId ?? null,
+      assigneeId: dto.assigneeId ?? null,
+      reporterId: dto.reporterId ?? null,
+      ownerId: dto.ownerId ?? dto.assigneeId ?? null,
+      createdBy: dto.createdBy ?? null,
+      priority: dto.priority ?? TaskPriority.MEDIUM,
+      status: dto.status ?? TaskStatus.OPEN,
+      startDate: dto.startDate ? new Date(dto.startDate) : null,
+      dueDate: dto.dueDate ? new Date(dto.dueDate) : null,
+      actualEndDate: dto.actualEndDate ? new Date(dto.actualEndDate) : null,
+      estimatedHours: dto.estimatedHours ?? null,
+      workHours: dto.workHours ?? dto.estimatedHours ?? null,
+      loggedHours: dto.loggedHours ?? 0,
+      timeLogTotal: dto.timeLogTotal ?? dto.loggedHours ?? 0,
+      completionPercentage: dto.completionPercentage ?? (dto.status === TaskStatus.DONE ? 100 : 0),
+      isBillable,
+      billingType: dto.billingType ?? (isBillable ? TaskBillingType.BILLABLE : TaskBillingType.NON_BILLABLE),
+      dependencies: dto.dependencies ?? [],
+      attachments: dto.attachments ?? [],
+      labels: dto.labels ?? [],
+      checklist: [],
+    };
+  }
+
+  private async syncMilestoneCompletion(milestoneId?: string | null): Promise<void> {
+    if (!milestoneId) return;
+
+    const { total, completed } = await this.repository.countByMilestoneId(milestoneId);
+    await this.milestonesService.updateCompletionPercentage(
+      milestoneId,
+      this.calculateCompletionPercentage(total, completed),
+    );
+  }
+
+  private calculateCompletionPercentage(total: number, completed: number): number {
+    if (total === 0) return 0;
+    return Math.round((completed / total) * 100);
+  }
+
+  private async logTaskCreated(item: Task, actorId?: string): Promise<void> {
+    if (!actorId) return;
+
+    await this.activitiesService.log({
+      projectId: item.projectId,
+      milestoneId: item.milestoneId,
+      taskId: item.id,
+      actorId,
+      action: ActivityAction.CREATED,
+      entityType: ActivityEntityType.TASK,
+      entityId: item.id,
+      title: 'Task created',
+      description: `Task "${item.title}" was created`,
+    });
+  }
+
+  private async logTaskUpdated(
+    existing: Task,
+    item: Task,
+    dto: UpdateTaskDto,
+    actorId?: string,
+  ): Promise<void> {
+    if (!actorId) return;
+
+    const isSubtask = Boolean(item.parentTaskId);
+    const statusChanged = dto.status && dto.status !== existing.status;
+
+    await this.activitiesService.log({
+      projectId: item.projectId,
+      milestoneId: item.milestoneId,
+      taskId: isSubtask ? item.parentTaskId : item.id,
+      subtaskId: isSubtask ? item.id : null,
+      actorId,
+      action: statusChanged ? ActivityAction.STATUS_CHANGED : ActivityAction.UPDATED,
+      entityType: isSubtask ? ActivityEntityType.SUBTASK : ActivityEntityType.TASK,
+      entityId: item.id,
+      title: statusChanged
+        ? `${isSubtask ? 'Subtask' : 'Task'} status changed`
+        : `${isSubtask ? 'Subtask' : 'Task'} updated`,
+      description: statusChanged
+        ? `${isSubtask ? 'Subtask' : 'Task'} "${item.title}" changed from ${existing.status} to ${dto.status}`
+        : `${isSubtask ? 'Subtask' : 'Task'} "${item.title}" was updated`,
+      oldValue: statusChanged ? existing.status : null,
+      newValue: statusChanged ? dto.status ?? null : null,
+    });
   }
 }

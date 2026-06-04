@@ -2,7 +2,8 @@ import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { IsNull, Repository } from 'typeorm';
 import { TaskEntity } from '../entities/task.entity';
-import { TasksRepository } from '../../tasks.repository';
+import { TaskStatusHistoryEntity } from '../entities/task-status-history.entity';
+import { TasksRepository, TaskStatusHistoryEntry } from '../../tasks.repository';
 import { Task } from '../../../../domain/task';
 import { TaskMapper } from '../mappers/task.mapper';
 import { IPaginationOptions } from '../../../../../common/types/pagination-options';
@@ -14,6 +15,8 @@ export class RelationalTasksRepository implements TasksRepository {
   constructor(
     @InjectRepository(TaskEntity)
     private readonly repo: Repository<TaskEntity>,
+    @InjectRepository(TaskStatusHistoryEntity)
+    private readonly statusHistoryRepo: Repository<TaskStatusHistoryEntity>,
   ) {}
 
   async findById(id: string): Promise<Task | null> {
@@ -90,6 +93,29 @@ export class RelationalTasksRepository implements TasksRepository {
     return { total, completed };
   }
 
+  async countByMilestoneId(
+    milestoneId: string,
+  ): Promise<{ total: number; completed: number; byStatus: Record<string, number> }> {
+    const rows = await this.repo
+      .createQueryBuilder('task')
+      .select('task.status', 'status')
+      .addSelect('COUNT(task.id)', 'count')
+      .where('task.milestoneId = :milestoneId', { milestoneId })
+      .andWhere('task.parentTaskId IS NULL')
+      .andWhere('task.deletedAt IS NULL')
+      .groupBy('task.status')
+      .getRawMany<{ status: TaskStatus; count: string }>();
+
+    const byStatus = rows.reduce<Record<string, number>>((accumulator, row) => {
+      accumulator[row.status] = Number(row.count);
+      return accumulator;
+    }, {});
+    const total = Object.values(byStatus).reduce((sum, count) => sum + count, 0);
+    const completed = byStatus[TaskStatus.DONE] ?? 0;
+
+    return { total, completed, byStatus };
+  }
+
   async reassignOpenTasks(fromUserId: string, toUserId: string): Promise<void> {
     await this.repo
       .createQueryBuilder()
@@ -100,5 +126,44 @@ export class RelationalTasksRepository implements TasksRepository {
         doneStatuses: [TaskStatus.DONE],
       })
       .execute();
+  }
+
+  async recordStatusChange(
+    entry: Omit<TaskStatusHistoryEntry, 'id' | 'createdAt'>,
+  ): Promise<TaskStatusHistoryEntry> {
+    const saved = await this.statusHistoryRepo.save(
+      this.statusHistoryRepo.create({
+        taskId: entry.taskId,
+        fromStatus: entry.fromStatus,
+        toStatus: entry.toStatus,
+        changedBy: entry.changedBy,
+        note: entry.note ?? null,
+      }),
+    );
+    return {
+      id: saved.id,
+      taskId: saved.taskId,
+      fromStatus: saved.fromStatus,
+      toStatus: saved.toStatus,
+      changedBy: saved.changedBy,
+      note: saved.note,
+      createdAt: saved.createdAt,
+    };
+  }
+
+  async findStatusHistory(taskId: string): Promise<TaskStatusHistoryEntry[]> {
+    const rows = await this.statusHistoryRepo.find({
+      where: { taskId },
+      order: { createdAt: 'DESC' },
+    });
+    return rows.map((r) => ({
+      id: r.id,
+      taskId: r.taskId,
+      fromStatus: r.fromStatus,
+      toStatus: r.toStatus,
+      changedBy: r.changedBy,
+      note: r.note,
+      createdAt: r.createdAt,
+    }));
   }
 }

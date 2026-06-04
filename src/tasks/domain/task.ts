@@ -1,6 +1,7 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { TaskPriority } from '../enums/task-priority.enum';
 import { TaskStatus } from '../enums/task-status.enum';
+import { TaskBillingType } from '../enums/task-billing-type.enum';
 
 export class Task {
   @ApiProperty({ type: String })
@@ -15,6 +16,9 @@ export class Task {
   @ApiPropertyOptional()
   parentTaskId: string | null;
 
+  @ApiPropertyOptional()
+  teamId: string | null;
+
   @ApiProperty()
   title: string;
 
@@ -26,6 +30,12 @@ export class Task {
 
   @ApiPropertyOptional()
   reporterId: string | null;
+
+  @ApiPropertyOptional()
+  ownerId: string | null;
+
+  @ApiPropertyOptional()
+  createdBy: string | null;
 
   @ApiProperty({ enum: TaskPriority })
   priority: TaskPriority;
@@ -40,13 +50,28 @@ export class Task {
   dueDate: Date | null;
 
   @ApiPropertyOptional()
+  actualEndDate: Date | null;
+
+  @ApiPropertyOptional()
   estimatedHours: number | null;
+
+  @ApiPropertyOptional()
+  workHours: number | null;
 
   @ApiProperty()
   loggedHours: number;
 
   @ApiProperty()
+  timeLogTotal: number;
+
+  @ApiProperty()
+  completionPercentage: number;
+
+  @ApiProperty()
   isBillable: boolean;
+
+  @ApiProperty({ enum: TaskBillingType })
+  billingType: TaskBillingType;
 
   @ApiPropertyOptional({ type: [String] })
   dependencies: string[];

@@ -26,6 +26,8 @@ import { ProjectActivitiesModule } from './project-activities/project-activities
 import { InvitationTemplatesModule } from './invitation-templates/invitation-templates.module';
 import { TaskCommentsModule } from './task-comments/task-comments.module';
 import { ProjectTagsModule } from './project-tags/project-tags.module';
+import { IssuesModule } from './issues/issues.module';
+import { ReleaseNotesModule } from './release-notes/release-notes.module';
 import { CaslAbilityGuard } from './auth/guards/casl-ability.guard';
 
 const infrastructureDatabaseModule = TypeOrmModule.forRootAsync({
@@ -61,6 +63,8 @@ const infrastructureDatabaseModule = TypeOrmModule.forRootAsync({
     InvitationTemplatesModule,
     TaskCommentsModule,
     ProjectTagsModule,
+    IssuesModule,
+    ReleaseNotesModule,
     HomeModule,
   ],
   providers: [

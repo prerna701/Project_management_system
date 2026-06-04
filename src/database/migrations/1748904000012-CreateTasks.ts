@@ -10,17 +10,25 @@ export class CreateTasks1748904000012 implements MigrationInterface {
         "projectId"       uuid        NOT NULL,
         "milestoneId"     uuid,
         "parentTaskId"    uuid,
+        "teamId"          uuid,
         "title"           varchar     NOT NULL,
         "description"     varchar,
         "assigneeId"      uuid,
         "reporterId"      uuid,
+        "ownerId"         uuid,
+        "createdBy"       uuid,
         "priority"        varchar     NOT NULL DEFAULT 'MEDIUM',
         "status"          varchar     NOT NULL DEFAULT 'OPEN',
         "startDate"       TIMESTAMPTZ,
         "dueDate"         TIMESTAMPTZ,
+        "actualEndDate"   TIMESTAMPTZ,
         "estimatedHours"  float,
+        "workHours"       float,
         "loggedHours"     float       NOT NULL DEFAULT 0,
+        "timeLogTotal"    float       NOT NULL DEFAULT 0,
+        "completionPercentage" float   NOT NULL DEFAULT 0,
         "isBillable"      boolean     NOT NULL DEFAULT false,
+        "billingType"     varchar     NOT NULL DEFAULT 'NON_BILLABLE',
         "dependencies"    jsonb       NOT NULL DEFAULT '[]',
         "attachments"     jsonb       NOT NULL DEFAULT '[]',
         "labels"          jsonb       NOT NULL DEFAULT '[]',
@@ -41,11 +49,15 @@ export class CreateTasks1748904000012 implements MigrationInterface {
     await queryRunner.query(`CREATE INDEX "IDX_tasks_project"    ON "tasks" ("projectId")`);
     await queryRunner.query(`CREATE INDEX "IDX_tasks_milestone"  ON "tasks" ("milestoneId")`);
     await queryRunner.query(`CREATE INDEX "IDX_tasks_assignee"   ON "tasks" ("assigneeId")`);
+    await queryRunner.query(`CREATE INDEX "IDX_tasks_team"       ON "tasks" ("teamId")`);
+    await queryRunner.query(`CREATE INDEX "IDX_tasks_owner"      ON "tasks" ("ownerId")`);
     await queryRunner.query(`CREATE INDEX "IDX_tasks_parent"     ON "tasks" ("parentTaskId")`);
   }
 
   public async down(queryRunner: QueryRunner): Promise<void> {
     await queryRunner.query(`DROP INDEX "IDX_tasks_parent"`);
+    await queryRunner.query(`DROP INDEX "IDX_tasks_owner"`);
+    await queryRunner.query(`DROP INDEX "IDX_tasks_team"`);
     await queryRunner.query(`DROP INDEX "IDX_tasks_assignee"`);
     await queryRunner.query(`DROP INDEX "IDX_tasks_milestone"`);
     await queryRunner.query(`DROP INDEX "IDX_tasks_project"`);

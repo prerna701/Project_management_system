@@ -2,7 +2,8 @@ import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { MilestoneEntity } from '../entities/milestone.entity';
-import { MilestonesRepository } from '../../milestones.repository';
+import { MilestoneStatusHistoryEntity } from '../entities/milestone-status-history.entity';
+import { MilestonesRepository, MilestoneStatusHistoryEntry } from '../../milestones.repository';
 import { Milestone } from '../../../../domain/milestone';
 import { MilestoneMapper } from '../mappers/milestone.mapper';
 import { IPaginationOptions } from '../../../../../common/types/pagination-options';
@@ -13,6 +14,8 @@ export class RelationalMilestonesRepository implements MilestonesRepository {
   constructor(
     @InjectRepository(MilestoneEntity)
     private readonly repo: Repository<MilestoneEntity>,
+    @InjectRepository(MilestoneStatusHistoryEntity)
+    private readonly statusHistoryRepo: Repository<MilestoneStatusHistoryEntity>,
   ) {}
 
   async findById(id: string): Promise<Milestone | null> {
@@ -62,5 +65,44 @@ export class RelationalMilestonesRepository implements MilestonesRepository {
 
   async remove(id: string): Promise<void> {
     await this.repo.softDelete(id);
+  }
+
+  async recordStatusChange(
+    entry: Omit<MilestoneStatusHistoryEntry, 'id' | 'createdAt'>,
+  ): Promise<MilestoneStatusHistoryEntry> {
+    const saved = await this.statusHistoryRepo.save(
+      this.statusHistoryRepo.create({
+        milestoneId: entry.milestoneId,
+        fromStatus: entry.fromStatus,
+        toStatus: entry.toStatus,
+        changedBy: entry.changedBy,
+        note: entry.note ?? null,
+      }),
+    );
+    return {
+      id: saved.id,
+      milestoneId: saved.milestoneId,
+      fromStatus: saved.fromStatus,
+      toStatus: saved.toStatus,
+      changedBy: saved.changedBy,
+      note: saved.note,
+      createdAt: saved.createdAt,
+    };
+  }
+
+  async findStatusHistory(milestoneId: string): Promise<MilestoneStatusHistoryEntry[]> {
+    const rows = await this.statusHistoryRepo.find({
+      where: { milestoneId },
+      order: { createdAt: 'DESC' },
+    });
+    return rows.map((r) => ({
+      id: r.id,
+      milestoneId: r.milestoneId,
+      fromStatus: r.fromStatus,
+      toStatus: r.toStatus,
+      changedBy: r.changedBy,
+      note: r.note,
+      createdAt: r.createdAt,
+    }));
   }
 }

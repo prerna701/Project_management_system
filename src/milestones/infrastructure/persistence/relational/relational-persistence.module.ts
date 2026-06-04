@@ -1,11 +1,12 @@
 import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { MilestoneEntity } from './entities/milestone.entity';
+import { MilestoneStatusHistoryEntity } from './entities/milestone-status-history.entity';
 import { MilestonesRepository } from '../milestones.repository';
 import { RelationalMilestonesRepository } from './repositories/milestones.repository';
 
 @Module({
-  imports: [TypeOrmModule.forFeature([MilestoneEntity])],
+  imports: [TypeOrmModule.forFeature([MilestoneEntity, MilestoneStatusHistoryEntity])],
   providers: [
     { provide: MilestonesRepository, useClass: RelationalMilestonesRepository },
   ],
