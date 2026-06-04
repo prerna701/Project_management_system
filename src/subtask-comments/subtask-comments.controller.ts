@@ -14,9 +14,9 @@ import {
 } from '@nestjs/common';
 import { AuthGuard } from '@nestjs/passport';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
-import { TaskCommentsService } from './task-comments.service';
-import { CreateTaskCommentDto } from './dto/create-task-comment.dto';
-import { UpdateTaskCommentDto } from './dto/update-task-comment.dto';
+import { SubtaskCommentsService } from './subtask-comments.service';
+import { CreateSubtaskCommentDto } from './dto/create-subtask-comment.dto';
+import { UpdateSubtaskCommentDto } from './dto/update-subtask-comment.dto';
 import { BaseQueryDto } from '../common/dto/base-query.dto';
 import { CurrentUser } from '../common/decorators/current-user.decorator';
 import { JwtPayloadType } from '../auth/strategies/types/jwt-payload.type';
@@ -28,57 +28,57 @@ import { API_PAGE_LIMIT } from '../common/constants/common.constant';
 @UseInterceptors(AuditLogInterceptor)
 @ApiBearerAuth()
 @UseGuards(AuthGuard('jwt'))
-@ApiTags('Task Comments')
+@ApiTags('Subtask Comments')
 @Controller({ version: '1' })
-export class TaskCommentsController {
-  constructor(private readonly service: TaskCommentsService) {}
+export class SubtaskCommentsController {
+  constructor(private readonly service: SubtaskCommentsService) {}
 
-  @Get('tasks/:taskId/comments')
+  @Get('subtasks/:subtaskId/comments')
   @HttpCode(HttpStatus.OK)
-  async findByTask(
-    @Param('taskId') taskId: string,
+  async findBySubtask(
+    @Param('subtaskId') subtaskId: string,
     @CurrentUser() currentUser: JwtPayloadType,
     @Query() query: BaseQueryDto,
   ) {
     const { paginationOptions } = extractQueryOptions(query, API_PAGE_LIMIT);
-    const { items, meta } = await this.service.findByTask(taskId, currentUser.id, paginationOptions);
-    return createPaginatedResponse('Task comments fetched successfully', items, meta);
+    const { items, meta } = await this.service.findBySubtask(subtaskId, currentUser.id, paginationOptions);
+    return createPaginatedResponse('Subtask comments fetched successfully', items, meta);
   }
 
-  @Post('tasks/:taskId/comments')
+  @Post('subtasks/:subtaskId/comments')
   @HttpCode(HttpStatus.CREATED)
   async create(
-    @Param('taskId') taskId: string,
+    @Param('subtaskId') subtaskId: string,
     @CurrentUser() currentUser: JwtPayloadType,
-    @Body() dto: CreateTaskCommentDto,
+    @Body() dto: CreateSubtaskCommentDto,
   ) {
-    const item = await this.service.create(taskId, currentUser.id, dto);
-    return createResponse('Task comment added successfully', item);
+    const item = await this.service.create(subtaskId, currentUser.id, dto);
+    return createResponse('Subtask comment added successfully', item);
   }
 
-  @Post('task-comments/:id/replies')
+  @Post('subtask-comments/:id/replies')
   @HttpCode(HttpStatus.CREATED)
   async reply(
     @Param('id') id: string,
     @CurrentUser() currentUser: JwtPayloadType,
-    @Body() dto: CreateTaskCommentDto,
+    @Body() dto: CreateSubtaskCommentDto,
   ) {
     const item = await this.service.reply(id, currentUser.id, dto);
-    return createResponse('Task comment reply added successfully', item);
+    return createResponse('Subtask comment reply added successfully', item);
   }
 
-  @Patch('task-comments/:id')
+  @Patch('subtask-comments/:id')
   @HttpCode(HttpStatus.OK)
   async update(
     @Param('id') id: string,
     @CurrentUser() currentUser: JwtPayloadType,
-    @Body() dto: UpdateTaskCommentDto,
+    @Body() dto: UpdateSubtaskCommentDto,
   ) {
     const item = await this.service.update(id, currentUser.id, dto);
-    return createResponse('Task comment updated successfully', item);
+    return createResponse('Subtask comment updated successfully', item);
   }
 
-  @Delete('task-comments/:id')
+  @Delete('subtask-comments/:id')
   @HttpCode(HttpStatus.NO_CONTENT)
   async remove(
     @Param('id') id: string,

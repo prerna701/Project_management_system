@@ -20,7 +20,6 @@ import { CreateTaskDto } from './dto/create-task.dto';
 import { UpdateTaskDto } from './dto/update-task.dto';
 import { AssignTaskDto } from './dto/assign-task.dto';
 import { AssignMilestoneDto } from './dto/assign-milestone.dto';
-import { CreateSubtaskDto } from './dto/create-subtask.dto';
 import { BaseQueryDto } from '../common/dto/base-query.dto';
 import { AuditLogInterceptor } from '../audit-logs/audit-log.interceptor';
 import { AuditLog } from '../audit-logs/audit-log.decorator';
@@ -68,16 +67,6 @@ export class TasksController {
     await this.service.findById(id);
     const items = await this.service.getStatusHistory(id);
     return createResponse('Task status timeline fetched successfully', items);
-  }
-
-  @Get('tasks/:id/subtasks')
-  @SetMetadata('abilities', [['browse', 'subtasks']])
-
-  @HttpCode(HttpStatus.OK)
-  async findSubtasks(@Param('id') id: string, @Query() query: BaseQueryDto) {
-    const { paginationOptions } = extractQueryOptions(query, API_PAGE_LIMIT);
-    const { items, meta } = await this.service.findSubtasks(id, paginationOptions);
-    return createPaginatedResponse('Subtasks fetched successfully', items, meta);
   }
 
   @Get('milestones/:milestoneId/tasks')
@@ -191,22 +180,4 @@ export class TasksController {
     return createResponse('Task milestone updated successfully', item);
   }
 
-  @AuditLog({
-    module: 'Tasks',
-    entityName: '{entityName}',
-    descriptionTemplate: 'Created Subtask under Task "{entityName}"',
-    impact: 'low',
-  })
-  @Post('tasks/:id/subtasks')
-  @SetMetadata('abilities', [['add', 'subtasks']])
-
-  @HttpCode(HttpStatus.CREATED)
-  async createSubtask(
-    @Param('id') id: string,
-    @Body() dto: CreateSubtaskDto,
-    @CurrentUser() currentUser: JwtPayloadType,
-  ) {
-    const item = await this.service.createSubtask(id, dto, currentUser.id);
-    return createResponse('Subtask created successfully', item);
-  }
 }

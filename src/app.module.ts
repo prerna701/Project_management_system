@@ -28,6 +28,8 @@ import { TaskCommentsModule } from './task-comments/task-comments.module';
 import { ProjectTagsModule } from './project-tags/project-tags.module';
 import { IssuesModule } from './issues/issues.module';
 import { ReleaseNotesModule } from './release-notes/release-notes.module';
+import { SubtasksModule } from './subtasks/subtasks.module';
+import { SubtaskCommentsModule } from './subtask-comments/subtask-comments.module';
 import { CaslAbilityGuard } from './auth/guards/casl-ability.guard';
 
 const infrastructureDatabaseModule = TypeOrmModule.forRootAsync({
@@ -65,6 +67,8 @@ const infrastructureDatabaseModule = TypeOrmModule.forRootAsync({
     ProjectTagsModule,
     IssuesModule,
     ReleaseNotesModule,
+    SubtasksModule,
+    SubtaskCommentsModule,
     HomeModule,
   ],
   providers: [

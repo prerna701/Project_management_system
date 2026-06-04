@@ -4,7 +4,6 @@ import { Task } from './domain/task';
 import { CreateTaskDto } from './dto/create-task.dto';
 import { UpdateTaskDto } from './dto/update-task.dto';
 import { AssignTaskDto } from './dto/assign-task.dto';
-import { CreateSubtaskDto } from './dto/create-subtask.dto';
 import { IPaginationOptions } from '../common/types/pagination-options';
 import { PaginationMetaDto } from '../common/dto/pagination-response.dto';
 import { TaskPriority } from './enums/task-priority.enum';
@@ -68,16 +67,6 @@ export class TasksService {
       search,
       milestoneId,
       parentTaskId: null,
-    });
-  }
-
-  async findSubtasks(
-    parentTaskId: string,
-    paginationOptions?: IPaginationOptions,
-  ): Promise<{ items: Task[]; meta: PaginationMetaDto }> {
-    return this.repository.findManyWithPagination({
-      paginationOptions: paginationOptions || { page: 1, limit: 50 },
-      parentTaskId,
     });
   }
 
@@ -210,53 +199,6 @@ export class TasksService {
     }
 
     return updated;
-  }
-
-  async createSubtask(parentTaskId: string, dto: CreateSubtaskDto, actorId?: string): Promise<Task> {
-    const parent = await this.findById(parentTaskId);
-    const item = await this.repository.create({
-      projectId: parent.projectId,
-      milestoneId: parent.milestoneId,
-      parentTaskId,
-      teamId: parent.teamId,
-      title: dto.title,
-      description: null,
-      assigneeId: dto.assigneeId ?? null,
-      reporterId: null,
-      ownerId: dto.assigneeId ?? null,
-      createdBy: null,
-      priority: TaskPriority.MEDIUM,
-      status: dto.status ?? TaskStatus.OPEN,
-      startDate: null,
-      dueDate: dto.dueDate ? new Date(dto.dueDate) : null,
-      actualEndDate: null,
-      estimatedHours: null,
-      workHours: null,
-      loggedHours: 0,
-      timeLogTotal: 0,
-      completionPercentage: dto.status === TaskStatus.DONE ? 100 : 0,
-      isBillable: parent.isBillable,
-      billingType: parent.billingType,
-      dependencies: [],
-      attachments: [],
-      labels: [],
-      checklist: dto.checklist ?? [],
-    });
-    if (actorId) {
-      await this.activitiesService.log({
-        projectId: item.projectId,
-        milestoneId: item.milestoneId,
-        taskId: parentTaskId,
-        subtaskId: item.id,
-        actorId,
-        action: ActivityAction.CREATED,
-        entityType: ActivityEntityType.SUBTASK,
-        entityId: item.id,
-        title: 'Subtask created',
-        description: `Subtask "${item.title}" was created under task "${parent.title}"`,
-      });
-    }
-    return item;
   }
 
   async reassignOpenTasks(fromUserId: string, toUserId: string): Promise<void> {
