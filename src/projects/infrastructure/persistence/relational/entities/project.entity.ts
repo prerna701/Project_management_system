@@ -24,6 +24,9 @@ export class ProjectEntity {
   @Column({ type: 'varchar', nullable: true })
   description: string | null;
 
+  @Column({ type: 'varchar', nullable: true })
+  clientName: string | null;
+
   @Column({ type: 'timestamptz', nullable: true })
   startDate: Date | null;
 

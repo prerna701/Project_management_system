@@ -29,6 +29,9 @@ export class Project {
   description: string | null;
 
   @ApiPropertyOptional()
+  clientName: string | null;
+
+  @ApiPropertyOptional()
   startDate: Date | null;
 
   @ApiPropertyOptional()
