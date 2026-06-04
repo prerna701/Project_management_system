@@ -48,13 +48,8 @@ export function defineAbilitiesFor(
   if (
     roleIds.includes(RoleEnum.admin.toString()) ||
     roleNames.includes('admin')
-  ) {
-    // Grant every defined action on every subject so specific ability checks always pass
-    const allActions: Actions[] = [
-      'manage', 'create', 'read', 'update', 'delete',
-      'browse', 'add', 'edit', 'approve', 'reject', 'assign',
-    ];
-    allActions.forEach((action) => can(action, 'all'));
+  ) { 
+    can('manage', 'all'); 
   } else {
     permissionLabels.forEach((perm) => {
       const [subjectRaw, actionRaw] = perm.split('.');
