@@ -77,6 +77,23 @@ export class TasksController {
     return createPaginatedResponse('Subtasks fetched successfully', items, meta);
   }
 
+  @Get('milestones/:milestoneId/tasks')
+  @SetMetadata('abilities', [['browse', 'tasks']])
+  @HttpCode(HttpStatus.OK)
+  async findByMilestone(
+    @Param('milestoneId') milestoneId: string,
+    @Query() query: BaseQueryDto,
+  ) {
+    await this.milestonesService.findById(milestoneId);
+    const { paginationOptions } = extractQueryOptions(query, API_PAGE_LIMIT);
+    const { items, meta } = await this.service.findByMilestone(
+      milestoneId,
+      paginationOptions,
+      query.search,
+    );
+    return createPaginatedResponse('Milestone tasks fetched successfully', items, meta);
+  }
+
   @AuditLog({
     module: 'Tasks',
     entityName: '{entityName}',
