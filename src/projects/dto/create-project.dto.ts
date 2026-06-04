@@ -8,10 +8,29 @@ import {
   IsOptional,
   IsString,
   IsUUID,
+  ValidateNested,
 } from 'class-validator';
+import { Type } from 'class-transformer';
 import { ProjectPriority } from '../enums/project-priority.enum';
 import { ProjectStatus } from '../enums/project-status.enum';
 import { ProjectVisibility } from '../enums/project-visibility.enum';
+
+export class ProjectTagDto {
+  @ApiProperty({ example: 'tag-001' })
+  @IsNotEmpty()
+  @IsUUID()
+  id: string;
+
+  @ApiProperty({ example: 'Frontend' })
+  @IsNotEmpty()
+  @IsString()
+  label: string;
+
+  @ApiProperty({ example: '#60a5fa' })
+  @IsNotEmpty()
+  @IsString()
+  color: string;
+}
 
 export class CreateProjectDto {
   @ApiProperty({ example: 'CRM System' })
@@ -29,11 +48,6 @@ export class CreateProjectDto {
   @IsString()
   description?: string;
 
-  @ApiPropertyOptional({ example: 'ABC Client' })
-  @IsOptional()
-  @IsString()
-  clientName?: string;
-
   @ApiPropertyOptional({ example: '2026-06-10' })
   @IsOptional()
   @IsString()
@@ -47,7 +61,7 @@ export class CreateProjectDto {
   @ApiPropertyOptional({
     enum: ProjectPriority,
     description:
-      'Optional override. If omitted, backend resolves it from estimatedHours: FOUNDATION 40-100, ADVANCED 101-400, STRATEGIC 401-800, MISSION_CRITICAL 801+.',
+      'Optional override. If omitted, backend resolves it from estimatedHours: FOUNDATION ≤100h, ADVANCED 101-400h, STRATEGIC 401+h.',
   })
   @IsOptional()
   @IsEnum(ProjectPriority)
@@ -93,11 +107,12 @@ export class CreateProjectDto {
   @IsUUID()
   projectManagerId?: string;
 
-  @ApiPropertyOptional({ type: [String], example: ['crm', 'internal'] })
+  @ApiPropertyOptional({ type: [ProjectTagDto] })
   @IsOptional()
   @IsArray()
-  @IsString({ each: true })
-  tags?: string[];
+  @ValidateNested({ each: true })
+  @Type(() => ProjectTagDto)
+  tags?: ProjectTagDto[];
 
   @ApiPropertyOptional({ type: [String] })
   @IsOptional()

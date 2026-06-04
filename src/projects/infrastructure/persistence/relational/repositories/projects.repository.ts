@@ -81,6 +81,16 @@ export class RelationalProjectsRepository implements ProjectsRepository {
     };
   }
 
+  async nextCodeNumber(): Promise<number> {
+    const result = await this.repo
+      .createQueryBuilder('project')
+      .select("MAX(CAST(SUBSTRING(project.code FROM 5) AS INTEGER))", "maxNum")
+      .where("project.code LIKE 'PRO-%'")
+      .andWhere("project.deletedAt IS NULL")
+      .getRawOne<{ maxNum: string | null }>();
+    return parseInt(result?.maxNum ?? '0', 10) || 0;
+  }
+
   async create(item: Partial<Project>): Promise<Project> {
     const entity = this.repo.create(ProjectMapper.toPersistence(item) as ProjectEntity);
     const saved = await this.repo.save(entity);

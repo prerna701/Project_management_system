@@ -24,13 +24,17 @@ export class RelationalTasksRepository implements TasksRepository {
   async findManyWithPagination(options: {
     paginationOptions: IPaginationOptions;
     search?: string;
+    projectId?: string;
     milestoneId?: string;
     assigneeId?: string;
     parentTaskId?: string | null;
   }): Promise<{ items: Task[]; meta: PaginationMetaDto }> {
-    const { paginationOptions, search, milestoneId, assigneeId, parentTaskId } = options;
+    const { paginationOptions, search, projectId, milestoneId, assigneeId, parentTaskId } = options;
     const query = this.repo.createQueryBuilder('task').where('task.deletedAt IS NULL');
 
+    if (projectId) {
+      query.andWhere('task.projectId = :projectId', { projectId });
+    }
     if (milestoneId) {
       query.andWhere('task.milestoneId = :milestoneId', { milestoneId });
     }

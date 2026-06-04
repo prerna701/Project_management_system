@@ -28,12 +28,14 @@ export class ProjectsService {
     search?: string,
   ): Promise<{ items: Project[]; meta: PaginationMetaDto }> {
     const isAdmin = await this.isAdmin(currentUser);
-    return this.repository.findManyWithPagination({
+    const result = await this.repository.findManyWithPagination({
       paginationOptions: paginationOptions || { page: 1, limit: 10 },
       search,
       userId: currentUser.id,
       isAdmin,
     });
+    result.items = await Promise.all(result.items.map((p) => this.enrich(p)));
+    return result;
   }
 
   async findById(id: string, currentUser: JwtPayloadType): Promise<Project> {
@@ -47,12 +49,33 @@ export class ProjectsService {
       if (exists) throw new ForbiddenException('You are not allowed to access this private project');
       throw new NotFoundException(`Project #${id} not found`);
     }
-    return item;
+    return this.enrich(item);
+  }
+
+  private async enrich(project: Project): Promise<Project> {
+    const [counts, owner] = await Promise.all([
+      this.tasksService.getTaskCounts(project.id),
+      project.projectManagerId
+        ? this.usersService.findById(project.projectManagerId)
+        : Promise.resolve(null),
+    ]);
+    project.totalTasks = counts.total;
+    project.completedTasks = counts.completed;
+    project.owner = owner
+      ? { id: owner.id, firstName: owner.firstName ?? null, lastName: owner.lastName ?? null }
+      : null;
+    return project;
   }
 
   async create(dto: CreateProjectDto): Promise<Project> {
+    let code = dto.code?.trim() || null;
+    if (!code) {
+      const nextNum = (await this.repository.nextCodeNumber()) + 1;
+      code = `PRO-${nextNum.toString().padStart(3, '0')}`;
+    }
     return this.repository.create({
       ...dto,
+      code,
       priority: dto.priority ?? this.resolvePriority(dto.estimatedHours),
       visibility: dto.visibility ?? ProjectVisibility.PRIVATE,
       status: dto.status ?? ProjectStatus.PLANNING,

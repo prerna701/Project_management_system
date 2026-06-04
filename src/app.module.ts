@@ -25,6 +25,7 @@ import { ProjectCommentsModule } from './project-comments/project-comments.modul
 import { ProjectActivitiesModule } from './project-activities/project-activities.module';
 import { InvitationTemplatesModule } from './invitation-templates/invitation-templates.module';
 import { TaskCommentsModule } from './task-comments/task-comments.module';
+import { ProjectTagsModule } from './project-tags/project-tags.module';
 import { CaslAbilityGuard } from './auth/guards/casl-ability.guard';
 
 const infrastructureDatabaseModule = TypeOrmModule.forRootAsync({
@@ -59,6 +60,7 @@ const infrastructureDatabaseModule = TypeOrmModule.forRootAsync({
     ProjectActivitiesModule,
     InvitationTemplatesModule,
     TaskCommentsModule,
+    ProjectTagsModule,
     HomeModule,
   ],
   providers: [

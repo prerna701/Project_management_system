@@ -21,6 +21,14 @@ export type Subjects =
   | 'users'
   | 'roles'
   | 'permissions'
+  | 'tasks'
+  | 'subtasks'
+  | 'projects'
+  | 'project_clients'
+  | 'project_users'
+  | 'project_tags'
+  | 'milestones'
+  | 'teams'
   | 'all';
 
 export type AppAbility = MongoAbility<[Actions, Subjects]>;
@@ -41,7 +49,12 @@ export function defineAbilitiesFor(
     roleIds.includes(RoleEnum.admin.toString()) ||
     roleNames.includes('admin')
   ) {
-    can('manage', 'all');
+    // Grant every defined action on every subject so specific ability checks always pass
+    const allActions: Actions[] = [
+      'manage', 'create', 'read', 'update', 'delete',
+      'browse', 'add', 'edit', 'approve', 'reject', 'assign',
+    ];
+    allActions.forEach((action) => can(action, 'all'));
   } else {
     permissionLabels.forEach((perm) => {
       const [subjectRaw, actionRaw] = perm.split('.');

@@ -25,6 +25,40 @@ export class TasksService {
     });
   }
 
+  async findByProject(
+    projectId: string,
+    paginationOptions?: IPaginationOptions,
+    search?: string,
+  ): Promise<{ items: Task[]; meta: PaginationMetaDto }> {
+    return this.repository.findManyWithPagination({
+      paginationOptions: paginationOptions || { page: 1, limit: 100 },
+      search,
+      projectId,
+      parentTaskId: null,
+    });
+  }
+
+  async createForProject(projectId: string, dto: CreateTaskDto): Promise<Task> {
+    return this.repository.create({
+      projectId,
+      title: dto.title,
+      description: dto.description ?? null,
+      assigneeId: dto.assigneeId ?? null,
+      reporterId: dto.reporterId ?? null,
+      priority: dto.priority ?? TaskPriority.MEDIUM,
+      status: dto.status ?? TaskStatus.OPEN,
+      startDate: dto.startDate ? new Date(dto.startDate) : null,
+      dueDate: dto.dueDate ? new Date(dto.dueDate) : null,
+      estimatedHours: dto.estimatedHours ?? null,
+      loggedHours: 0,
+      isBillable: dto.isBillable ?? false,
+      dependencies: [],
+      attachments: [],
+      labels: dto.labels ?? [],
+      checklist: [],
+    });
+  }
+
   async findByMilestone(
     milestoneId: string,
     paginationOptions?: IPaginationOptions,
@@ -123,6 +157,10 @@ export class TasksService {
 
   async reassignOpenTasks(fromUserId: string, toUserId: string): Promise<void> {
     await this.repository.reassignOpenTasks(fromUserId, toUserId);
+  }
+
+  async getTaskCounts(projectId: string): Promise<{ total: number; completed: number }> {
+    return this.repository.countByProjectId(projectId);
   }
 
   async getCompletionPercentage(projectId: string): Promise<number> {

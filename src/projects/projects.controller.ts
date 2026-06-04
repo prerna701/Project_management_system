@@ -16,7 +16,9 @@ import {
 import { AuthGuard } from '@nestjs/passport';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import { ProjectsService } from './projects.service';
+import { TasksService } from '../tasks/tasks.service';
 import { CreateProjectDto } from './dto/create-project.dto';
+import { CreateTaskDto } from '../tasks/dto/create-task.dto';
 import { UpdateProjectDto } from './dto/update-project.dto';
 import { AssignTeamDto } from './dto/assign-team.dto';
 import { AddClientDto } from './dto/add-client.dto';
@@ -35,7 +37,10 @@ import { API_PAGE_LIMIT } from '../common/constants/common.constant';
 @ApiTags('Projects')
 @Controller({ path: 'projects', version: '1' })
 export class ProjectsController {
-  constructor(private readonly service: ProjectsService) {}
+  constructor(
+    private readonly service: ProjectsService,
+    private readonly tasksService: TasksService,
+  ) {}
 
   @Get()
   @HttpCode(HttpStatus.OK)
@@ -132,6 +137,29 @@ export class ProjectsController {
   async assignTeam(@Param('id') id: string, @Body() dto: AssignTeamDto) {
     const item = await this.service.assignTeam(id, dto);
     return createResponse('Team assigned to project successfully', item);
+  }
+
+  @Get(':id/tasks')
+  @SetMetadata('abilities', [['browse', 'tasks']])
+  @HttpCode(HttpStatus.OK)
+  async findProjectTasks(@Param('id') id: string, @Query() query: BaseQueryDto) {
+    const { paginationOptions } = extractQueryOptions(query, API_PAGE_LIMIT);
+    const { items, meta } = await this.tasksService.findByProject(id, paginationOptions, query.search);
+    return createPaginatedResponse('Tasks fetched successfully', items, meta);
+  }
+
+  @AuditLog({
+    module: 'Tasks',
+    entityName: '{entityName}',
+    descriptionTemplate: 'Created Task "{entityName}"',
+    impact: 'medium',
+  })
+  @Post(':id/tasks')
+  @SetMetadata('abilities', [['add', 'tasks']])
+  @HttpCode(HttpStatus.CREATED)
+  async createProjectTask(@Param('id') id: string, @Body() dto: CreateTaskDto) {
+    const item = await this.tasksService.createForProject(id, dto);
+    return createResponse('Task created successfully', item);
   }
 
   @Get(':id/clients')

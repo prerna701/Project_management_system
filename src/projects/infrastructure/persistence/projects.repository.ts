@@ -15,6 +15,7 @@ export abstract class ProjectsRepository {
     userId?: string;
     isAdmin?: boolean;
   }): Promise<{ items: Project[]; meta: PaginationMetaDto }>;
+  abstract nextCodeNumber(): Promise<number>;
   abstract create(item: Partial<Project>): Promise<Project>;
   abstract update(id: string, item: Partial<Project>): Promise<Project | null>;
   abstract remove(id: string): Promise<void>;
