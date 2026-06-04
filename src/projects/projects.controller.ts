@@ -157,8 +157,12 @@ export class ProjectsController {
   @Post(':id/tasks')
   @SetMetadata('abilities', [['add', 'tasks']])
   @HttpCode(HttpStatus.CREATED)
-  async createProjectTask(@Param('id') id: string, @Body() dto: CreateTaskDto) {
-    const item = await this.tasksService.createForProject(id, dto);
+  async createProjectTask(
+    @Param('id') id: string,
+    @Body() dto: CreateTaskDto,
+    @CurrentUser() currentUser: JwtPayloadType,
+  ) {
+    const item = await this.tasksService.createForProject(id, dto, currentUser.id);
     return createResponse('Task created successfully', item);
   }
 

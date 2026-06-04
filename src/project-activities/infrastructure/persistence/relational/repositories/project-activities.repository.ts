@@ -21,14 +21,30 @@ export class RelationalProjectActivitiesRepository implements ProjectActivitiesR
     return ProjectActivityMapper.toDomain(saved);
   }
 
-  async findByProjectId(
-    projectId: string,
-    options: { paginationOptions: IPaginationOptions },
+  async findMany(
+    options: {
+      paginationOptions: IPaginationOptions;
+      projectId?: string;
+      milestoneId?: string;
+      taskId?: string;
+      subtaskId?: string;
+    },
   ): Promise<{ items: ProjectActivity[]; meta: PaginationMetaDto }> {
     const { page, limit } = options.paginationOptions;
-    const query = this.repo
-      .createQueryBuilder('activity')
-      .where('activity.projectId = :projectId', { projectId });
+    const query = this.repo.createQueryBuilder('activity');
+
+    if (options.projectId) {
+      query.andWhere('activity.projectId = :projectId', { projectId: options.projectId });
+    }
+    if (options.milestoneId) {
+      query.andWhere('activity.milestoneId = :milestoneId', { milestoneId: options.milestoneId });
+    }
+    if (options.taskId) {
+      query.andWhere('activity.taskId = :taskId', { taskId: options.taskId });
+    }
+    if (options.subtaskId) {
+      query.andWhere('activity.subtaskId = :subtaskId', { subtaskId: options.subtaskId });
+    }
 
     const totalItems = await query.getCount();
     const entities = await query

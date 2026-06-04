@@ -7,6 +7,15 @@ export class ProjectActivity {
   @ApiProperty()
   projectId: string;
 
+  @ApiPropertyOptional()
+  milestoneId: string | null;
+
+  @ApiPropertyOptional()
+  taskId: string | null;
+
+  @ApiPropertyOptional()
+  subtaskId: string | null;
+
   @ApiProperty()
   actorId: string;
 
@@ -20,7 +29,16 @@ export class ProjectActivity {
   entityId: string | null;
 
   @ApiProperty()
+  title: string;
+
+  @ApiProperty()
   description: string;
+
+  @ApiPropertyOptional()
+  oldValue: string | null;
+
+  @ApiPropertyOptional()
+  newValue: string | null;
 
   @ApiProperty()
   metadata: Record<string, unknown>;

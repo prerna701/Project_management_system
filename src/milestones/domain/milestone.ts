@@ -15,6 +15,9 @@ export class Milestone {
   description: string | null;
 
   @ApiPropertyOptional()
+  startDate: Date | null;
+
+  @ApiPropertyOptional()
   dueDate: Date | null;
 
   @ApiPropertyOptional()
@@ -25,6 +28,12 @@ export class Milestone {
 
   @ApiProperty()
   completionPercentage: number;
+
+  @ApiPropertyOptional({ type: [String] })
+  issues: string[];
+
+  @ApiPropertyOptional({ type: [String] })
+  comments: string[];
 
   @ApiProperty()
   createdAt: Date;

@@ -8,9 +8,12 @@ import {
   IsOptional,
   IsString,
   IsUUID,
+  Max,
+  Min,
 } from 'class-validator';
 import { TaskPriority } from '../enums/task-priority.enum';
 import { TaskStatus } from '../enums/task-status.enum';
+import { TaskBillingType } from '../enums/task-billing-type.enum';
 
 export class CreateTaskDto {
   @ApiProperty({ example: 'Create login API' })
@@ -23,6 +26,11 @@ export class CreateTaskDto {
   @IsString()
   description?: string;
 
+  @ApiPropertyOptional({ example: 'team-uuid' })
+  @IsOptional()
+  @IsUUID()
+  teamId?: string;
+
   @ApiPropertyOptional({ example: 'user-uuid' })
   @IsOptional()
   @IsUUID()
@@ -32,6 +40,16 @@ export class CreateTaskDto {
   @IsOptional()
   @IsUUID()
   reporterId?: string;
+
+  @ApiPropertyOptional({ example: 'user-uuid' })
+  @IsOptional()
+  @IsUUID()
+  ownerId?: string;
+
+  @ApiPropertyOptional({ example: 'user-uuid' })
+  @IsOptional()
+  @IsUUID()
+  createdBy?: string;
 
   @ApiPropertyOptional({ enum: TaskPriority, default: TaskPriority.MEDIUM })
   @IsOptional()
@@ -53,15 +71,47 @@ export class CreateTaskDto {
   @IsString()
   dueDate?: string;
 
+  @ApiPropertyOptional({ example: '2026-06-20' })
+  @IsOptional()
+  @IsString()
+  actualEndDate?: string;
+
   @ApiPropertyOptional({ example: 16 })
   @IsOptional()
   @IsNumber()
   estimatedHours?: number;
 
+  @ApiPropertyOptional({ example: 16 })
+  @IsOptional()
+  @IsNumber()
+  workHours?: number;
+
+  @ApiPropertyOptional({ example: 4 })
+  @IsOptional()
+  @IsNumber()
+  loggedHours?: number;
+
+  @ApiPropertyOptional({ example: 4 })
+  @IsOptional()
+  @IsNumber()
+  timeLogTotal?: number;
+
+  @ApiPropertyOptional({ example: 0 })
+  @IsOptional()
+  @IsNumber()
+  @Min(0)
+  @Max(100)
+  completionPercentage?: number;
+
   @ApiPropertyOptional({ example: true })
   @IsOptional()
   @IsBoolean()
   isBillable?: boolean;
+
+  @ApiPropertyOptional({ enum: TaskBillingType, default: TaskBillingType.NON_BILLABLE })
+  @IsOptional()
+  @IsEnum(TaskBillingType)
+  billingType?: TaskBillingType;
 
   @ApiPropertyOptional({ type: [String] })
   @IsOptional()

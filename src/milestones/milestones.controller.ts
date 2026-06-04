@@ -24,6 +24,8 @@ import { AuditLog } from '../audit-logs/audit-log.decorator';
 import { createResponse, createPaginatedResponse } from '../common/utils/base-response';
 import { extractQueryOptions } from '../common/helpers/query-options.helper';
 import { API_PAGE_LIMIT } from '../common/constants/common.constant';
+import { CurrentUser } from '../common/decorators/current-user.decorator';
+import { JwtPayloadType } from '../auth/strategies/types/jwt-payload.type';
 
 @UseInterceptors(AuditLogInterceptor)
 @ApiBearerAuth()
@@ -62,8 +64,12 @@ export class MilestonesController {
   @SetMetadata('abilities', [['add', 'milestones']])
 
   @HttpCode(HttpStatus.CREATED)
-  async create(@Param('projectId') projectId: string, @Body() dto: CreateMilestoneDto) {
-    const item = await this.service.create(projectId, dto);
+  async create(
+    @Param('projectId') projectId: string,
+    @Body() dto: CreateMilestoneDto,
+    @CurrentUser() currentUser: JwtPayloadType,
+  ) {
+    const item = await this.service.create(projectId, dto, currentUser.id);
     return createResponse('Milestone created successfully', item);
   }
 
@@ -78,16 +84,32 @@ export class MilestonesController {
   @SetMetadata('abilities', [['edit', 'milestones']])
 
   @HttpCode(HttpStatus.OK)
-  async update(@Param('id') id: string, @Body() dto: UpdateMilestoneDto) {
-    const item = await this.service.update(id, dto);
+  async update(
+    @Param('id') id: string,
+    @Body() dto: UpdateMilestoneDto,
+    @CurrentUser() currentUser: JwtPayloadType,
+  ) {
+    const item = await this.service.update(id, dto, currentUser.id);
     return createResponse('Milestone updated successfully', item);
+  }
+
+  @Get('milestones/:id/timeline')
+  @SetMetadata('abilities', [['read', 'milestones']])
+  @HttpCode(HttpStatus.OK)
+  async getStatusTimeline(@Param('id') id: string) {
+    await this.service.findById(id);
+    const items = await this.service.getStatusHistory(id);
+    return createResponse('Milestone status timeline fetched successfully', items);
   }
 
   @Delete('milestones/:id')
   @SetMetadata('abilities', [['delete', 'milestones']])
 
   @HttpCode(HttpStatus.NO_CONTENT)
-  async remove(@Param('id') id: string): Promise<void> {
-    await this.service.remove(id);
+  async remove(
+    @Param('id') id: string,
+    @CurrentUser() currentUser: JwtPayloadType,
+  ): Promise<void> {
+    await this.service.remove(id, currentUser.id);
   }
 }

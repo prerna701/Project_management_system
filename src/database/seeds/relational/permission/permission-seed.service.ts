@@ -66,6 +66,17 @@ export class PermissionSeedService {
       { name: 'subtasks.add', label: 'Add Subtasks', module: 'subtasks' },
       { name: 'subtasks.edit', label: 'Edit Subtasks', module: 'subtasks' },
       { name: 'subtasks.delete', label: 'Delete Subtasks', module: 'subtasks' },
+      // Issues
+      { name: 'issues.browse', label: 'Browse Issues', module: 'issues' },
+      { name: 'issues.read', label: 'Read Issues', module: 'issues' },
+      { name: 'issues.add', label: 'Add Issues', module: 'issues' },
+      { name: 'issues.edit', label: 'Edit Issues', module: 'issues' },
+      { name: 'issues.delete', label: 'Delete Issues', module: 'issues' },
+      // Project Activities
+      { name: 'project_activities.browse', label: 'Browse Project Activities', module: 'project_activities' },
+      // Release Notes
+      { name: 'release_notes.browse', label: 'Browse Release Notes', module: 'release_notes' },
+      { name: 'release_notes.add', label: 'Add Release Notes', module: 'release_notes' },
     ];
 
     for (const perm of permissions) {
