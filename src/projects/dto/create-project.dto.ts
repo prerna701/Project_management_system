@@ -48,6 +48,11 @@ export class CreateProjectDto {
   @IsString()
   description?: string;
 
+ @ApiPropertyOptional({ example: 'ABC Client' })
+  @IsOptional()
+  @IsString()
+  clientName?: string;
+
   @ApiPropertyOptional({ example: '2026-06-10' })
   @IsOptional()
   @IsString()
