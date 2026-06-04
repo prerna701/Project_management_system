@@ -58,7 +58,7 @@ export class ProjectEntity {
   projectManagerId: string | null;
 
   @Column({ type: 'jsonb', default: [] })
-  tags: string[];
+  tags: { id: string; label: string; color: string }[];
 
   @Column({ type: 'jsonb', default: [] })
   attachments: string[];

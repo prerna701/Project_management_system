@@ -7,6 +7,7 @@ export abstract class TasksRepository {
   abstract findManyWithPagination(options: {
     paginationOptions: IPaginationOptions;
     search?: string;
+    projectId?: string;
     milestoneId?: string;
     assigneeId?: string;
     parentTaskId?: string | null;
