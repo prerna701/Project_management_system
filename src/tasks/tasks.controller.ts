@@ -19,7 +19,7 @@ import { TasksService } from './tasks.service';
 import { CreateTaskDto } from './dto/create-task.dto';
 import { UpdateTaskDto } from './dto/update-task.dto';
 import { AssignTaskDto } from './dto/assign-task.dto';
-import { CreateSubtaskDto } from './dto/create-subtask.dto';
+import { AssignMilestoneDto } from './dto/assign-milestone.dto';
 import { BaseQueryDto } from '../common/dto/base-query.dto';
 import { AuditLogInterceptor } from '../audit-logs/audit-log.interceptor';
 import { AuditLog } from '../audit-logs/audit-log.decorator';
@@ -27,17 +27,8 @@ import { createResponse, createPaginatedResponse } from '../common/utils/base-re
 import { extractQueryOptions } from '../common/helpers/query-options.helper';
 import { API_PAGE_LIMIT } from '../common/constants/common.constant';
 import { MilestonesService } from '../milestones/milestones.service';
-import { ApiProperty } from '@nestjs/swagger';
-import { IsNotEmpty, IsUUID } from 'class-validator';
 import { CurrentUser } from '../common/decorators/current-user.decorator';
 import { JwtPayloadType } from '../auth/strategies/types/jwt-payload.type';
-
-class CreateTaskWithProjectDto extends CreateTaskDto {
-  @ApiProperty({ example: 'project-uuid' })
-  @IsNotEmpty()
-  @IsUUID()
-  projectId: string;
-}
 
 @UseInterceptors(AuditLogInterceptor)
 @ApiBearerAuth()
@@ -76,16 +67,6 @@ export class TasksController {
     await this.service.findById(id);
     const items = await this.service.getStatusHistory(id);
     return createResponse('Task status timeline fetched successfully', items);
-  }
-
-  @Get('tasks/:id/subtasks')
-  @SetMetadata('abilities', [['browse', 'subtasks']])
-
-  @HttpCode(HttpStatus.OK)
-  async findSubtasks(@Param('id') id: string, @Query() query: BaseQueryDto) {
-    const { paginationOptions } = extractQueryOptions(query, API_PAGE_LIMIT);
-    const { items, meta } = await this.service.findSubtasks(id, paginationOptions);
-    return createPaginatedResponse('Subtasks fetched successfully', items, meta);
   }
 
   @Get('milestones/:milestoneId/tasks')
@@ -187,22 +168,16 @@ export class TasksController {
     return createResponse('Task assigned successfully', item);
   }
 
-  @AuditLog({
-    module: 'Tasks',
-    entityName: '{entityName}',
-    descriptionTemplate: 'Created Subtask under Task "{entityName}"',
-    impact: 'low',
-  })
-  @Post('tasks/:id/subtasks')
-  @SetMetadata('abilities', [['add', 'subtasks']])
-
-  @HttpCode(HttpStatus.CREATED)
-  async createSubtask(
+  @Patch('tasks/:id/milestone')
+  @SetMetadata('abilities', [['edit', 'tasks']])
+  @HttpCode(HttpStatus.OK)
+  async assignToMilestone(
     @Param('id') id: string,
-    @Body() dto: CreateSubtaskDto,
+    @Body() dto: AssignMilestoneDto,
     @CurrentUser() currentUser: JwtPayloadType,
   ) {
-    const item = await this.service.createSubtask(id, dto, currentUser.id);
-    return createResponse('Subtask created successfully', item);
+    const item = await this.service.assignToMilestone(id, dto.milestoneId, currentUser.id);
+    return createResponse('Task milestone updated successfully', item);
   }
+
 }

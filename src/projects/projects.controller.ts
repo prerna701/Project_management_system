@@ -142,9 +142,18 @@ export class ProjectsController {
   @Get(':id/tasks')
   @SetMetadata('abilities', [['browse', 'tasks']])
   @HttpCode(HttpStatus.OK)
-  async findProjectTasks(@Param('id') id: string, @Query() query: BaseQueryDto) {
+  async findProjectTasks(
+    @Param('id') id: string,
+    @Query() query: BaseQueryDto,
+    @Query('withoutMilestone') withoutMilestone?: string,
+  ) {
     const { paginationOptions } = extractQueryOptions(query, API_PAGE_LIMIT);
-    const { items, meta } = await this.tasksService.findByProject(id, paginationOptions, query.search);
+    const { items, meta } = await this.tasksService.findByProject(
+      id,
+      paginationOptions,
+      query.search,
+      withoutMilestone === 'true',
+    );
     return createPaginatedResponse('Tasks fetched successfully', items, meta);
   }
 

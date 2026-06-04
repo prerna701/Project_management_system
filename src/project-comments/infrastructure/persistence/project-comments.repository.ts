@@ -8,6 +8,10 @@ export abstract class ProjectCommentsRepository {
     projectId: string,
     options: { paginationOptions: IPaginationOptions },
   ): Promise<{ items: ProjectComment[]; meta: PaginationMetaDto }>;
+  abstract findByMilestoneId(
+    milestoneId: string,
+    options: { paginationOptions: IPaginationOptions },
+  ): Promise<{ items: ProjectComment[]; meta: PaginationMetaDto }>;
   abstract create(item: Partial<ProjectComment>): Promise<ProjectComment>;
   abstract update(id: string, item: Partial<ProjectComment>): Promise<ProjectComment | null>;
   abstract remove(id: string): Promise<void>;

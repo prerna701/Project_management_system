@@ -5,9 +5,16 @@ import { RelationalTaskCommentsPersistenceModule } from './infrastructure/persis
 import { AuditLogsModule } from '../audit-logs/audit-logs.module';
 import { ProjectActivitiesModule } from '../project-activities/project-activities.module';
 import { TasksModule } from '../tasks/tasks.module';
+import { CommentsModule } from '../comments/comments.module';
 
 @Module({
-  imports: [RelationalTaskCommentsPersistenceModule, AuditLogsModule, ProjectActivitiesModule, TasksModule],
+  imports: [
+    RelationalTaskCommentsPersistenceModule,
+    AuditLogsModule,
+    ProjectActivitiesModule,
+    TasksModule,
+    CommentsModule,
+  ],
   controllers: [TaskCommentsController],
   providers: [TaskCommentsService],
   exports: [TaskCommentsService],

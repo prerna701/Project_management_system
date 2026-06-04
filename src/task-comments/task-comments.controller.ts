@@ -9,7 +9,6 @@ import {
   Patch,
   Post,
   Query,
-  SetMetadata,
   UseGuards,
   UseInterceptors,
 } from '@nestjs/common';
@@ -35,19 +34,18 @@ export class TaskCommentsController {
   constructor(private readonly service: TaskCommentsService) {}
 
   @Get('tasks/:taskId/comments')
-  @SetMetadata('abilities', [['browse', 'task_comments']])
   @HttpCode(HttpStatus.OK)
   async findByTask(
     @Param('taskId') taskId: string,
+    @CurrentUser() currentUser: JwtPayloadType,
     @Query() query: BaseQueryDto,
   ) {
     const { paginationOptions } = extractQueryOptions(query, API_PAGE_LIMIT);
-    const { items, meta } = await this.service.findByTask(taskId, paginationOptions);
+    const { items, meta } = await this.service.findByTask(taskId, currentUser.id, paginationOptions);
     return createPaginatedResponse('Task comments fetched successfully', items, meta);
   }
 
   @Post('tasks/:taskId/comments')
-  @SetMetadata('abilities', [['add', 'task_comments']])
   @HttpCode(HttpStatus.CREATED)
   async create(
     @Param('taskId') taskId: string,
@@ -58,8 +56,18 @@ export class TaskCommentsController {
     return createResponse('Task comment added successfully', item);
   }
 
+  @Post('task-comments/:id/replies')
+  @HttpCode(HttpStatus.CREATED)
+  async reply(
+    @Param('id') id: string,
+    @CurrentUser() currentUser: JwtPayloadType,
+    @Body() dto: CreateTaskCommentDto,
+  ) {
+    const item = await this.service.reply(id, currentUser.id, dto);
+    return createResponse('Task comment reply added successfully', item);
+  }
+
   @Patch('task-comments/:id')
-  @SetMetadata('abilities', [['edit', 'task_comments']])
   @HttpCode(HttpStatus.OK)
   async update(
     @Param('id') id: string,
@@ -71,7 +79,6 @@ export class TaskCommentsController {
   }
 
   @Delete('task-comments/:id')
-  @SetMetadata('abilities', [['delete', 'task_comments']])
   @HttpCode(HttpStatus.NO_CONTENT)
   async remove(
     @Param('id') id: string,

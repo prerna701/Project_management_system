@@ -7,11 +7,23 @@ export class TaskComment {
   @ApiProperty()
   taskId: string;
 
+  @ApiPropertyOptional()
+  parentCommentId: string | null;
+
   @ApiProperty()
   userId: string;
 
   @ApiProperty()
   content: string;
+
+  @ApiPropertyOptional({ type: [String] })
+  mentions: string[];
+
+  @ApiPropertyOptional({ type: [String] })
+  attachments: string[];
+
+  @ApiProperty()
+  isEdited: boolean;
 
   @ApiProperty()
   createdAt: Date;

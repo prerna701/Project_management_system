@@ -7,11 +7,26 @@ export class ProjectComment {
   @ApiProperty()
   projectId: string;
 
+  @ApiPropertyOptional()
+  milestoneId: string | null;
+
+  @ApiPropertyOptional()
+  parentCommentId: string | null;
+
   @ApiProperty()
   userId: string;
 
   @ApiProperty()
   content: string;
+
+  @ApiPropertyOptional({ type: [String] })
+  mentions: string[];
+
+  @ApiPropertyOptional({ type: [String] })
+  attachments: string[];
+
+  @ApiProperty()
+  isEdited: boolean;
 
   @ApiProperty()
   createdAt: Date;

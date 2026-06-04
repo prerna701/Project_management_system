@@ -28,6 +28,7 @@ export class RelationalProjectCommentsRepository implements ProjectCommentsRepos
     const query = this.repo
       .createQueryBuilder('comment')
       .where('comment.projectId = :projectId', { projectId })
+      .andWhere('comment.milestoneId IS NULL')
       .andWhere('comment.deletedAt IS NULL');
 
     const totalItems = await query.getCount();
@@ -35,6 +36,29 @@ export class RelationalProjectCommentsRepository implements ProjectCommentsRepos
       .skip((page - 1) * limit)
       .take(limit)
       .orderBy('comment.createdAt', 'DESC')
+      .getMany();
+
+    return {
+      items: entities.map(ProjectCommentMapper.toDomain),
+      meta: { currentPage: page, limit, totalItems, totalPages: Math.ceil(totalItems / limit) },
+    };
+  }
+
+  async findByMilestoneId(
+    milestoneId: string,
+    options: { paginationOptions: IPaginationOptions },
+  ): Promise<{ items: ProjectComment[]; meta: PaginationMetaDto }> {
+    const { page, limit } = options.paginationOptions;
+    const query = this.repo
+      .createQueryBuilder('comment')
+      .where('comment.milestoneId = :milestoneId', { milestoneId })
+      .andWhere('comment.deletedAt IS NULL');
+
+    const totalItems = await query.getCount();
+    const entities = await query
+      .skip((page - 1) * limit)
+      .take(limit)
+      .orderBy('comment.createdAt', 'ASC')
       .getMany();
 
     return {

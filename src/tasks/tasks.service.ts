@@ -1,10 +1,9 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { TasksRepository } from './infrastructure/persistence/tasks.repository';
 import { Task } from './domain/task';
 import { CreateTaskDto } from './dto/create-task.dto';
 import { UpdateTaskDto } from './dto/update-task.dto';
 import { AssignTaskDto } from './dto/assign-task.dto';
-import { CreateSubtaskDto } from './dto/create-subtask.dto';
 import { IPaginationOptions } from '../common/types/pagination-options';
 import { PaginationMetaDto } from '../common/dto/pagination-response.dto';
 import { TaskPriority } from './enums/task-priority.enum';
@@ -38,12 +37,14 @@ export class TasksService {
     projectId: string,
     paginationOptions?: IPaginationOptions,
     search?: string,
+    withoutMilestone?: boolean,
   ): Promise<{ items: Task[]; meta: PaginationMetaDto }> {
     return this.repository.findManyWithPagination({
       paginationOptions: paginationOptions || { page: 1, limit: 100 },
       search,
       projectId,
       parentTaskId: null,
+      withoutMilestone,
     });
   }
 
@@ -66,16 +67,6 @@ export class TasksService {
       search,
       milestoneId,
       parentTaskId: null,
-    });
-  }
-
-  async findSubtasks(
-    parentTaskId: string,
-    paginationOptions?: IPaginationOptions,
-  ): Promise<{ items: Task[]; meta: PaginationMetaDto }> {
-    return this.repository.findManyWithPagination({
-      paginationOptions: paginationOptions || { page: 1, limit: 50 },
-      parentTaskId,
     });
   }
 
@@ -168,51 +159,46 @@ export class TasksService {
     return item;
   }
 
-  async createSubtask(parentTaskId: string, dto: CreateSubtaskDto, actorId?: string): Promise<Task> {
-    const parent = await this.findById(parentTaskId);
-    const item = await this.repository.create({
-      projectId: parent.projectId,
-      milestoneId: parent.milestoneId,
-      parentTaskId,
-      teamId: parent.teamId,
-      title: dto.title,
-      description: null,
-      assigneeId: dto.assigneeId ?? null,
-      reporterId: null,
-      ownerId: dto.assigneeId ?? null,
-      createdBy: null,
-      priority: TaskPriority.MEDIUM,
-      status: dto.status ?? TaskStatus.OPEN,
-      startDate: null,
-      dueDate: dto.dueDate ? new Date(dto.dueDate) : null,
-      actualEndDate: null,
-      estimatedHours: null,
-      workHours: null,
-      loggedHours: 0,
-      timeLogTotal: 0,
-      completionPercentage: dto.status === TaskStatus.DONE ? 100 : 0,
-      isBillable: parent.isBillable,
-      billingType: parent.billingType,
-      dependencies: [],
-      attachments: [],
-      labels: [],
-      checklist: dto.checklist ?? [],
-    });
+  async assignToMilestone(id: string, milestoneId: string | null | undefined, actorId?: string): Promise<Task> {
+    const task = await this.findById(id);
+    const previousMilestoneId = task.milestoneId;
+
+    if (milestoneId) {
+      const milestone = await this.milestonesService.findById(milestoneId);
+      if (milestone.projectId !== task.projectId) {
+        throw new BadRequestException('Milestone does not belong to the same project as the task');
+      }
+    }
+
+    const updated = await this.repository.update(id, { milestoneId: milestoneId ?? null });
+    if (!updated) throw new NotFoundException(`Task #${id} not found`);
+
+    if (previousMilestoneId) {
+      await this.syncMilestoneCompletion(previousMilestoneId);
+    }
+    if (milestoneId) {
+      await this.syncMilestoneCompletion(milestoneId);
+    }
+
     if (actorId) {
       await this.activitiesService.log({
-        projectId: item.projectId,
-        milestoneId: item.milestoneId,
-        taskId: parentTaskId,
-        subtaskId: item.id,
+        projectId: task.projectId,
+        milestoneId: milestoneId ?? null,
+        taskId: task.id,
         actorId,
-        action: ActivityAction.CREATED,
-        entityType: ActivityEntityType.SUBTASK,
-        entityId: item.id,
-        title: 'Subtask created',
-        description: `Subtask "${item.title}" was created under task "${parent.title}"`,
+        action: ActivityAction.ASSIGNED,
+        entityType: ActivityEntityType.TASK,
+        entityId: task.id,
+        title: milestoneId ? 'Task added to milestone' : 'Task removed from milestone',
+        description: milestoneId
+          ? `Task "${task.title}" was added to a milestone`
+          : `Task "${task.title}" was removed from its milestone`,
+        oldValue: previousMilestoneId,
+        newValue: milestoneId ?? null,
       });
     }
-    return item;
+
+    return updated;
   }
 
   async reassignOpenTasks(fromUserId: string, toUserId: string): Promise<void> {

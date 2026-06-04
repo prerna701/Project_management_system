@@ -126,11 +126,61 @@ export class RelationalUserRepository implements UserRepository {
       }
     }
 
-    const allPerms = [...directPerms.map((dp) => dp.permission), ...rolePerms];
+    const scopedDirectPerms = directPerms.map((dp) => ({
+      ...dp.permission,
+      resourceId: dp.resourceId ?? null,
+      resourceType: dp.resourceType ?? null,
+    }));
+    const allPerms = [...scopedDirectPerms, ...rolePerms];
     const unique = allPerms.filter(
-      (p, i, arr) => arr.findIndex((q) => q.id === p.id) === i,
+      (p, i, arr) =>
+        arr.findIndex(
+          (q) =>
+            q.id === p.id &&
+            (q.resourceId ?? null) === (p.resourceId ?? null) &&
+            (q.resourceType ?? null) === (p.resourceType ?? null),
+        ) === i,
     );
     return unique;
+  }
+
+  async hasUserPermission(
+    userId: string,
+    permissionName: string,
+    resourceId?: string,
+    resourceType?: string,
+  ): Promise<boolean> {
+    const scopedDirectPermission = await this.userPermRepo
+      .createQueryBuilder('userPermission')
+      .innerJoin('userPermission.permission', 'permission')
+      .where('userPermission.userId = :userId', { userId })
+      .andWhere('permission.name = :permissionName', { permissionName })
+      .andWhere(
+        resourceId
+          ? 'userPermission.resourceId = :resourceId'
+          : 'userPermission.resourceId IS NULL',
+        { resourceId },
+      )
+      .andWhere(
+        resourceType
+          ? 'userPermission.resourceType = :resourceType'
+          : 'userPermission.resourceType IS NULL',
+        { resourceType },
+      )
+      .getExists();
+
+    if (scopedDirectPermission) return true;
+
+    const roles = await this.getUserRoles(userId);
+    const roleIds = roles.map((role) => role.id).filter(Boolean);
+    if (roleIds.length === 0) return false;
+
+    return this.rolePermRepo
+      .createQueryBuilder('rolePermission')
+      .innerJoin('rolePermission.permission', 'permission')
+      .where('rolePermission.roleId IN (:...roleIds)', { roleIds })
+      .andWhere('permission.name = :permissionName', { permissionName })
+      .getExists();
   }
 
   async assignRole(userId: string, roleId: number): Promise<void> {
@@ -150,9 +200,32 @@ export class RelationalUserRepository implements UserRepository {
     resourceId?: string,
     resourceType?: string,
   ): Promise<void> {
-    const existing = await this.userPermRepo.findOne({ where: { userId, permissionId } });
+    const existing = await this.userPermRepo
+      .createQueryBuilder('userPermission')
+      .where('userPermission.userId = :userId', { userId })
+      .andWhere('userPermission.permissionId = :permissionId', { permissionId })
+      .andWhere(
+        resourceId
+          ? 'userPermission.resourceId = :resourceId'
+          : 'userPermission.resourceId IS NULL',
+        { resourceId },
+      )
+      .andWhere(
+        resourceType
+          ? 'userPermission.resourceType = :resourceType'
+          : 'userPermission.resourceType IS NULL',
+        { resourceType },
+      )
+      .getOne();
     if (!existing) {
-      await this.userPermRepo.save({ userId, permissionId, resourceId, resourceType });
+      await this.userPermRepo.save(
+        this.userPermRepo.create({
+          userId,
+          permissionId,
+          resourceId: resourceId ?? undefined,
+          resourceType: resourceType ?? undefined,
+        }),
+      );
     }
   }
 

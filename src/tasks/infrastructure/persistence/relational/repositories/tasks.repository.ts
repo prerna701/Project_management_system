@@ -29,10 +29,11 @@ export class RelationalTasksRepository implements TasksRepository {
     search?: string;
     projectId?: string;
     milestoneId?: string;
+    withoutMilestone?: boolean;
     assigneeId?: string;
     parentTaskId?: string | null;
   }): Promise<{ items: Task[]; meta: PaginationMetaDto }> {
-    const { paginationOptions, search, projectId, milestoneId, assigneeId, parentTaskId } = options;
+    const { paginationOptions, search, projectId, milestoneId, withoutMilestone, assigneeId, parentTaskId } = options;
     const query = this.repo.createQueryBuilder('task').where('task.deletedAt IS NULL');
 
     if (projectId) {
@@ -40,6 +41,9 @@ export class RelationalTasksRepository implements TasksRepository {
     }
     if (milestoneId) {
       query.andWhere('task.milestoneId = :milestoneId', { milestoneId });
+    }
+    if (withoutMilestone) {
+      query.andWhere('task.milestoneId IS NULL');
     }
     if (assigneeId) {
       query.andWhere('task.assigneeId = :assigneeId', { assigneeId });
