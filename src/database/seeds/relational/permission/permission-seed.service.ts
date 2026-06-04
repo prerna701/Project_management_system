@@ -66,6 +66,13 @@ export class PermissionSeedService {
       { name: 'subtasks.add', label: 'Add Subtasks', module: 'subtasks' },
       { name: 'subtasks.edit', label: 'Edit Subtasks', module: 'subtasks' },
       { name: 'subtasks.delete', label: 'Delete Subtasks', module: 'subtasks' },
+      // Comments
+      { name: 'comments.browse', label: 'Browse Comments', module: 'comments' },
+      { name: 'comments.add', label: 'Add Comments', module: 'comments' },
+      { name: 'comments.reply', label: 'Reply to Comments', module: 'comments' },
+      { name: 'comments.edit', label: 'Edit Comments', module: 'comments' },
+      { name: 'comments.delete', label: 'Delete Comments', module: 'comments' },
+      { name: 'comments.mention', label: 'Mention Users in Comments', module: 'comments' },
       // Issues
       { name: 'issues.browse', label: 'Browse Issues', module: 'issues' },
       { name: 'issues.read', label: 'Read Issues', module: 'issues' },

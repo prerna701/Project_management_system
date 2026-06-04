@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { TasksRepository } from './infrastructure/persistence/tasks.repository';
 import { Task } from './domain/task';
 import { CreateTaskDto } from './dto/create-task.dto';
@@ -38,12 +38,14 @@ export class TasksService {
     projectId: string,
     paginationOptions?: IPaginationOptions,
     search?: string,
+    withoutMilestone?: boolean,
   ): Promise<{ items: Task[]; meta: PaginationMetaDto }> {
     return this.repository.findManyWithPagination({
       paginationOptions: paginationOptions || { page: 1, limit: 100 },
       search,
       projectId,
       parentTaskId: null,
+      withoutMilestone,
     });
   }
 
@@ -166,6 +168,48 @@ export class TasksService {
       });
     }
     return item;
+  }
+
+  async assignToMilestone(id: string, milestoneId: string | null | undefined, actorId?: string): Promise<Task> {
+    const task = await this.findById(id);
+    const previousMilestoneId = task.milestoneId;
+
+    if (milestoneId) {
+      const milestone = await this.milestonesService.findById(milestoneId);
+      if (milestone.projectId !== task.projectId) {
+        throw new BadRequestException('Milestone does not belong to the same project as the task');
+      }
+    }
+
+    const updated = await this.repository.update(id, { milestoneId: milestoneId ?? null });
+    if (!updated) throw new NotFoundException(`Task #${id} not found`);
+
+    if (previousMilestoneId) {
+      await this.syncMilestoneCompletion(previousMilestoneId);
+    }
+    if (milestoneId) {
+      await this.syncMilestoneCompletion(milestoneId);
+    }
+
+    if (actorId) {
+      await this.activitiesService.log({
+        projectId: task.projectId,
+        milestoneId: milestoneId ?? null,
+        taskId: task.id,
+        actorId,
+        action: ActivityAction.ASSIGNED,
+        entityType: ActivityEntityType.TASK,
+        entityId: task.id,
+        title: milestoneId ? 'Task added to milestone' : 'Task removed from milestone',
+        description: milestoneId
+          ? `Task "${task.title}" was added to a milestone`
+          : `Task "${task.title}" was removed from its milestone`,
+        oldValue: previousMilestoneId,
+        newValue: milestoneId ?? null,
+      });
+    }
+
+    return updated;
   }
 
   async createSubtask(parentTaskId: string, dto: CreateSubtaskDto, actorId?: string): Promise<Task> {

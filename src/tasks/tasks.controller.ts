@@ -19,6 +19,7 @@ import { TasksService } from './tasks.service';
 import { CreateTaskDto } from './dto/create-task.dto';
 import { UpdateTaskDto } from './dto/update-task.dto';
 import { AssignTaskDto } from './dto/assign-task.dto';
+import { AssignMilestoneDto } from './dto/assign-milestone.dto';
 import { CreateSubtaskDto } from './dto/create-subtask.dto';
 import { BaseQueryDto } from '../common/dto/base-query.dto';
 import { AuditLogInterceptor } from '../audit-logs/audit-log.interceptor';
@@ -27,17 +28,8 @@ import { createResponse, createPaginatedResponse } from '../common/utils/base-re
 import { extractQueryOptions } from '../common/helpers/query-options.helper';
 import { API_PAGE_LIMIT } from '../common/constants/common.constant';
 import { MilestonesService } from '../milestones/milestones.service';
-import { ApiProperty } from '@nestjs/swagger';
-import { IsNotEmpty, IsUUID } from 'class-validator';
 import { CurrentUser } from '../common/decorators/current-user.decorator';
 import { JwtPayloadType } from '../auth/strategies/types/jwt-payload.type';
-
-class CreateTaskWithProjectDto extends CreateTaskDto {
-  @ApiProperty({ example: 'project-uuid' })
-  @IsNotEmpty()
-  @IsUUID()
-  projectId: string;
-}
 
 @UseInterceptors(AuditLogInterceptor)
 @ApiBearerAuth()
@@ -185,6 +177,18 @@ export class TasksController {
   ) {
     const item = await this.service.assignTask(id, dto, currentUser.id);
     return createResponse('Task assigned successfully', item);
+  }
+
+  @Patch('tasks/:id/milestone')
+  @SetMetadata('abilities', [['edit', 'tasks']])
+  @HttpCode(HttpStatus.OK)
+  async assignToMilestone(
+    @Param('id') id: string,
+    @Body() dto: AssignMilestoneDto,
+    @CurrentUser() currentUser: JwtPayloadType,
+  ) {
+    const item = await this.service.assignToMilestone(id, dto.milestoneId, currentUser.id);
+    return createResponse('Task milestone updated successfully', item);
   }
 
   @AuditLog({

@@ -18,11 +18,26 @@ export class ProjectCommentEntity {
   @Column({ type: 'uuid' })
   projectId: string;
 
+  @Column({ type: 'uuid', nullable: true })
+  milestoneId: string | null;
+
+  @Column({ type: 'uuid', nullable: true })
+  parentCommentId: string | null;
+
   @Column({ type: 'uuid' })
   userId: string;
 
   @Column({ type: 'text' })
   content: string;
+
+  @Column({ type: 'jsonb', default: [] })
+  mentions: string[];
+
+  @Column({ type: 'jsonb', default: [] })
+  attachments: string[];
+
+  @Column({ type: 'boolean', default: false })
+  isEdited: boolean;
 
   @CreateDateColumn()
   createdAt: Date;

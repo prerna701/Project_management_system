@@ -109,12 +109,17 @@ export class UsersService {
   }
 
   @TryCatch('Failed to assign permission')
-  async assignPermission(userId: string, permissionId: number): Promise<void> {
+  async assignPermission(
+    userId: string,
+    permissionId: number,
+    resourceId?: string,
+    resourceType?: string,
+  ): Promise<void> {
     const user = await this.findById(userId);
     if (!user) throw new NotFoundException(`User #${userId} not found`);
 
     await this.permissionsService.findById(permissionId);
-    await this.userRepository.assignPermission(userId, permissionId);
+    await this.userRepository.assignPermission(userId, permissionId, resourceId, resourceType);
   }
 
   @TryCatch('Failed to remove permission')

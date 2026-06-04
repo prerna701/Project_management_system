@@ -152,7 +152,12 @@ export class UsersController {
     @Param('id') id: string,
     @Body() dto: AssignPermissionDto,
   ): Promise<any> {
-    await this.usersService.assignPermission(id, dto.permissionId);
+    await this.usersService.assignPermission(
+      id,
+      dto.permissionId,
+      dto.resourceId,
+      dto.resourceType,
+    );
     return createResponse('Permission assigned successfully', null);
   }
 

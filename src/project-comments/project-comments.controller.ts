@@ -9,7 +9,6 @@ import {
   Patch,
   Post,
   Query,
-  SetMetadata,
   UseGuards,
   UseInterceptors,
 } from '@nestjs/common';
@@ -35,19 +34,34 @@ export class ProjectCommentsController {
   constructor(private readonly service: ProjectCommentsService) {}
 
   @Get('projects/:projectId/comments')
-  @SetMetadata('abilities', [['browse', 'project_comments']])
   @HttpCode(HttpStatus.OK)
   async findByProject(
     @Param('projectId') projectId: string,
+    @CurrentUser() currentUser: JwtPayloadType,
     @Query() query: BaseQueryDto,
   ) {
     const { paginationOptions } = extractQueryOptions(query, API_PAGE_LIMIT);
-    const { items, meta } = await this.service.findByProject(projectId, paginationOptions);
+    const { items, meta } = await this.service.findByProject(projectId, currentUser.id, paginationOptions);
     return createPaginatedResponse('Comments fetched successfully', items, meta);
   }
 
+  @Get('milestones/:milestoneId/comments')
+  @HttpCode(HttpStatus.OK)
+  async findByMilestone(
+    @Param('milestoneId') milestoneId: string,
+    @CurrentUser() currentUser: JwtPayloadType,
+    @Query() query: BaseQueryDto,
+  ) {
+    const { paginationOptions } = extractQueryOptions(query, API_PAGE_LIMIT);
+    const { items, meta } = await this.service.findByMilestone(
+      milestoneId,
+      currentUser.id,
+      paginationOptions,
+    );
+    return createPaginatedResponse('Milestone comments fetched successfully', items, meta);
+  }
+
   @Post('projects/:projectId/comments')
-  @SetMetadata('abilities', [['add', 'project_comments']])
   @HttpCode(HttpStatus.CREATED)
   async create(
     @Param('projectId') projectId: string,
@@ -58,8 +72,29 @@ export class ProjectCommentsController {
     return createResponse('Comment added successfully', item);
   }
 
+  @Post('milestones/:milestoneId/comments')
+  @HttpCode(HttpStatus.CREATED)
+  async createForMilestone(
+    @Param('milestoneId') milestoneId: string,
+    @CurrentUser() currentUser: JwtPayloadType,
+    @Body() dto: CreateProjectCommentDto,
+  ) {
+    const item = await this.service.createForMilestone(milestoneId, currentUser.id, dto);
+    return createResponse('Milestone comment added successfully', item);
+  }
+
+  @Post('project-comments/:id/replies')
+  @HttpCode(HttpStatus.CREATED)
+  async reply(
+    @Param('id') id: string,
+    @CurrentUser() currentUser: JwtPayloadType,
+    @Body() dto: CreateProjectCommentDto,
+  ) {
+    const item = await this.service.reply(id, currentUser.id, dto);
+    return createResponse('Comment reply added successfully', item);
+  }
+
   @Patch('project-comments/:id')
-  @SetMetadata('abilities', [['edit', 'project_comments']])
   @HttpCode(HttpStatus.OK)
   async update(
     @Param('id') id: string,
@@ -71,7 +106,6 @@ export class ProjectCommentsController {
   }
 
   @Delete('project-comments/:id')
-  @SetMetadata('abilities', [['delete', 'project_comments']])
   @HttpCode(HttpStatus.NO_CONTENT)
   async remove(
     @Param('id') id: string,

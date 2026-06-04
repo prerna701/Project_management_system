@@ -12,7 +12,9 @@ export type Actions =
   | 'edit'
   | 'approve'
   | 'reject'
-  | 'assign';
+  | 'assign'
+  | 'reply'
+  | 'mention';
 
 export type Subjects =
   | 'User'
@@ -27,6 +29,7 @@ export type Subjects =
   | 'project_clients'
   | 'project_users'
   | 'project_tags'
+  | 'comments'
   | 'milestones'
   | 'teams'
   | 'all';

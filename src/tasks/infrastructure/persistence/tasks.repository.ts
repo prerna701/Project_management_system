@@ -20,6 +20,7 @@ export abstract class TasksRepository {
     search?: string;
     projectId?: string;
     milestoneId?: string;
+    withoutMilestone?: boolean;
     assigneeId?: string;
     parentTaskId?: string | null;
   }): Promise<{ items: Task[]; meta: PaginationMetaDto }>;

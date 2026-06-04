@@ -16,6 +16,12 @@ export abstract class UserRepository {
   abstract remove(id: string): Promise<void>;
   abstract getUserRoles(userId: string): Promise<any[]>;
   abstract getUserPermissions(userId: string, roleIds?: number[]): Promise<any[]>;
+  abstract hasUserPermission(
+    userId: string,
+    permissionName: string,
+    resourceId?: string,
+    resourceType?: string,
+  ): Promise<boolean>;
   abstract assignRole(userId: string, roleId: number): Promise<void>;
   abstract removeRole(userId: string, roleId: number): Promise<void>;
   abstract assignPermission(userId: string, permissionId: number, resourceId?: string, resourceType?: string): Promise<void>;
