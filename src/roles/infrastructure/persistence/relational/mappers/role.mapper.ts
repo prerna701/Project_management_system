@@ -7,6 +7,8 @@ export class RoleMapper {
     role.id = raw.id;
     role.name = raw.name;
     role.slug = raw.slug;
+    role.userCount = (raw as any).userCount ?? 0;
+    role.permissionCount = (raw as any).permissionCount ?? 0;
     return role;
   }
 

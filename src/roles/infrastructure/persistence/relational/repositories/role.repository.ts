@@ -22,7 +22,11 @@ export class RelationalRoleRepository implements RoleRepository {
   }
 
   async findAll(): Promise<Role[]> {
-    const entities = await this.roleRepository.find();
+    const entities = await this.roleRepository
+      .createQueryBuilder('role')
+      .loadRelationCountAndMap('role.userCount', 'role.userRoles')
+      .loadRelationCountAndMap('role.permissionCount', 'role.rolePermissions')
+      .getMany();
     return entities.map(RoleMapper.toDomain);
   }
 

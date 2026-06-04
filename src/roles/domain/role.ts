@@ -9,4 +9,10 @@ export class Role {
 
   @ApiProperty({ type: String, example: 'admin' })
   slug?: string;
+
+  @ApiProperty({ type: Number })
+  userCount?: number;
+
+  @ApiProperty({ type: Number })
+  permissionCount?: number;
 }

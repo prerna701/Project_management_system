@@ -5,10 +5,12 @@ import {
   Entity,
   Index,
   ManyToOne,
+  OneToMany,
   PrimaryGeneratedColumn,
   UpdateDateColumn,
 } from 'typeorm';
 import { RoleEntity } from '../../../../../roles/infrastructure/persistence/relational/entities/role.entity';
+import { UserRoleEntity } from './user-role.entity';
 
 @Entity({ name: 'users' })
 export class UserEntity {
@@ -39,6 +41,9 @@ export class UserEntity {
 
   @ManyToOne(() => RoleEntity, { eager: true, nullable: true })
   role: RoleEntity | null;
+
+  @OneToMany(() => UserRoleEntity, (ur) => ur.user)
+  userRoles: UserRoleEntity[];
 
   @Column({ type: 'varchar', nullable: true })
   otp: string | null;

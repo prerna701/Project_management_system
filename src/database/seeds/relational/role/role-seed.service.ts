@@ -25,19 +25,13 @@ export class RoleSeedService {
 
   async run(): Promise<void> {
     for (const role of ROLES) {
-      const existing = await this.roleRepo.findOne({ where: { id: role.id } });
-
-      if (!existing) {
-        await this.roleRepo.save(this.roleRepo.create(role));
-        console.log(`Seeded role: ${role.name}`);
-        continue;
-      }
-
-      await this.roleRepo.update(role.id, {
-        name: role.name,
-        slug: role.slug,
-      });
-      console.log(`Role already exists, updated if needed: ${role.name}`);
+      await this.roleRepo.query(
+        `INSERT INTO "roles"("id", "name", "slug")
+         VALUES ($1, $2, $3)
+         ON CONFLICT (id) DO UPDATE SET "name" = EXCLUDED."name", "slug" = EXCLUDED."slug"`,
+        [role.id, role.name, role.slug],
+      );
+      console.log(`Seeded/updated role: ${role.name}`);
     }
 
     await this.roleRepo.query(

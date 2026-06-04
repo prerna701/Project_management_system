@@ -18,7 +18,11 @@ export class UserMapper {
     user.createdAt = raw.createdAt;
     user.updatedAt = raw.updatedAt;
     user.deletedAt = raw.deletedAt;
-    if (raw.role) user.role = RoleMapper.toDomain(raw.role);
+    if (raw.role) {
+      user.role = RoleMapper.toDomain(raw.role);
+    } else if (raw.userRoles?.length > 0 && raw.userRoles[0]?.role) {
+      user.role = RoleMapper.toDomain(raw.userRoles[0].role);
+    }
     return user;
   }
 

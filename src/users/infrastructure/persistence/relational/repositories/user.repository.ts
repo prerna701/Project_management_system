@@ -32,10 +32,13 @@ export class RelationalUserRepository implements UserRepository {
   }
 
   async findById(id: string, withRelations = false): Promise<NullableType<User>> {
-    const entity = await this.userRepo.findOne({
-      where: { id },
-      relations: withRelations ? ['role'] : ['role'],
-    });
+    const entity = await this.userRepo
+      .createQueryBuilder('user')
+      .leftJoinAndSelect('user.role', 'role')
+      .leftJoinAndSelect('user.userRoles', 'userRole')
+      .leftJoinAndSelect('userRole.role', 'userRoleRole')
+      .where('user.id = :id', { id })
+      .getOne();
     return entity ? UserMapper.toDomain(entity) : null;
   }
 
@@ -56,6 +59,8 @@ export class RelationalUserRepository implements UserRepository {
     const { paginationOptions, search } = options;
     const query = this.userRepo.createQueryBuilder('user')
       .leftJoinAndSelect('user.role', 'role')
+      .leftJoinAndSelect('user.userRoles', 'userRole')
+      .leftJoinAndSelect('userRole.role', 'userRoleRole')
       .withDeleted()
       .andWhere('user.deletedAt IS NULL');
 
