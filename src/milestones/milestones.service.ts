@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { MilestonesRepository } from './infrastructure/persistence/milestones.repository';
 import { Milestone } from './domain/milestone';
 import { CreateMilestoneDto } from './dto/create-milestone.dto';
@@ -6,10 +6,14 @@ import { UpdateMilestoneDto } from './dto/update-milestone.dto';
 import { IPaginationOptions } from '../common/types/pagination-options';
 import { PaginationMetaDto } from '../common/dto/pagination-response.dto';
 import { MilestoneStatus } from './enums/milestone-status.enum';
+import { TasksRepository } from '../tasks/infrastructure/persistence/tasks.repository';
 
 @Injectable()
 export class MilestonesService {
-  constructor(private readonly repository: MilestonesRepository) {}
+  constructor(
+    private readonly repository: MilestonesRepository,
+    private readonly tasksRepository: TasksRepository,
+  ) {}
 
   async findByProjectId(
     projectId: string,
@@ -29,7 +33,13 @@ export class MilestonesService {
   }
 
   async create(projectId: string, dto: CreateMilestoneDto): Promise<Milestone> {
-    return this.repository.create({
+    const taskIds = this.getUniqueTaskIds(dto.taskIds);
+
+    if (taskIds.length > 0) {
+      await this.ensureTasksBelongToProject(projectId, taskIds);
+    }
+
+    const milestone = await this.repository.create({
       projectId,
       name: dto.name,
       description: dto.description ?? null,
@@ -38,6 +48,10 @@ export class MilestonesService {
       status: dto.status ?? MilestoneStatus.PLANNED,
       completionPercentage: dto.completionPercentage ?? 0,
     });
+
+    await this.tasksRepository.assignMilestoneToTasks(projectId, milestone.id, taskIds);
+
+    return milestone;
   }
 
   async update(id: string, dto: UpdateMilestoneDto): Promise<Milestone> {
@@ -52,5 +66,23 @@ export class MilestonesService {
 
   async remove(id: string): Promise<void> {
     await this.repository.remove(id);
+  }
+
+ private getUniqueTaskIds(taskIds: string[] = []): string[] {
+  return [...new Set(taskIds)];
+}
+  private async ensureTasksBelongToProject(
+    projectId: string,
+    taskIds: string[],
+  ): Promise<void> {
+    const matchingTaskIds = await this.tasksRepository.findProjectTaskIds(projectId, taskIds);
+
+    if (matchingTaskIds.length !== taskIds.length) {
+      const matching = new Set(matchingTaskIds);
+      const invalidTaskIds = taskIds.filter((taskId) => !matching.has(taskId));
+      throw new BadRequestException(
+        `Tasks do not belong to project or were not found: ${invalidTaskIds.join(', ')}`,
+      );
+    }
   }
 }

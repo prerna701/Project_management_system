@@ -5,6 +5,7 @@ import { RelationalProjectsPersistenceModule } from './infrastructure/persistenc
 import { AuditLogsModule } from '../audit-logs/audit-logs.module';
 import { UsersModule } from '../users/users.module';
 import { TasksModule } from '../tasks/tasks.module';
+import { MilestonesModule } from '../milestones/milestones.module';
 
 @Module({
   imports: [
@@ -12,6 +13,7 @@ import { TasksModule } from '../tasks/tasks.module';
     AuditLogsModule,
     forwardRef(() => UsersModule),
     forwardRef(() => TasksModule),
+    MilestonesModule,
   ],
   controllers: [ProjectsController],
   providers: [ProjectsService],

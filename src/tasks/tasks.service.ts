@@ -38,9 +38,13 @@ export class TasksService {
     });
   }
 
-  async createForProject(projectId: string, dto: CreateTaskDto): Promise<Task> {
+  async createForProject(
+    projectId: string,
+    dto: CreateTaskDto & { milestoneId?: string },
+  ): Promise<Task> {
     return this.repository.create({
       projectId,
+      milestoneId: dto.milestoneId ?? null,
       title: dto.title,
       description: dto.description ?? null,
       assigneeId: dto.assigneeId ?? null,

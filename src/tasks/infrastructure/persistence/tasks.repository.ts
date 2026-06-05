@@ -15,6 +15,12 @@ export abstract class TasksRepository {
   abstract create(item: Partial<Task>): Promise<Task>;
   abstract update(id: string, item: Partial<Task>): Promise<Task | null>;
   abstract remove(id: string): Promise<void>;
+  abstract findProjectTaskIds(projectId: string, taskIds: string[]): Promise<string[]>;
+  abstract assignMilestoneToTasks(
+    projectId: string,
+    milestoneId: string,
+    taskIds: string[],
+  ): Promise<void>;
   abstract reassignOpenTasks(fromUserId: string, toUserId: string): Promise<void>;
   abstract countByProjectId(projectId: string): Promise<{ total: number; completed: number }>;
 }

@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { IsNull, Repository } from 'typeorm';
+import { In, IsNull, Repository } from 'typeorm';
 import { TaskEntity } from '../entities/task.entity';
 import { TasksRepository } from '../../tasks.repository';
 import { Task } from '../../../../domain/task';
@@ -80,6 +80,38 @@ export class RelationalTasksRepository implements TasksRepository {
 
   async remove(id: string): Promise<void> {
     await this.repo.softDelete(id);
+  }
+
+  async findProjectTaskIds(projectId: string, taskIds: string[]): Promise<string[]> {
+    if (taskIds.length === 0) return [];
+
+    const rows = await this.repo.find({
+      select: { id: true },
+      where: {
+        id: In(taskIds),
+        projectId,
+        deletedAt: IsNull(),
+      },
+    });
+
+    return rows.map((row) => row.id);
+  }
+
+  async assignMilestoneToTasks(
+    projectId: string,
+    milestoneId: string,
+    taskIds: string[],
+  ): Promise<void> {
+    if (taskIds.length === 0) return;
+
+    await this.repo.update(
+      {
+        id: In(taskIds),
+        projectId,
+        deletedAt: IsNull(),
+      },
+      { milestoneId },
+    );
   }
 
   async countByProjectId(projectId: string): Promise<{ total: number; completed: number }> {

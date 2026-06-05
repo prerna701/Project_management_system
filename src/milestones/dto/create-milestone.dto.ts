@@ -1,5 +1,5 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { IsEnum, IsNotEmpty, IsNumber, IsOptional, IsString, IsUUID, Max, Min } from 'class-validator';
+import { IsArray, IsEnum, IsNotEmpty, IsNumber, IsOptional, IsString, IsUUID, Max, Min } from 'class-validator';
 import { MilestoneStatus } from '../enums/milestone-status.enum';
 
 export class CreateMilestoneDto {
@@ -34,4 +34,10 @@ export class CreateMilestoneDto {
   @Min(0)
   @Max(100)
   completionPercentage?: number;
+
+  @ApiPropertyOptional({ type: [String], description: 'Existing project task IDs to attach to this milestone' })
+  @IsOptional()
+  @IsArray()
+  @IsUUID(undefined, { each: true })
+  taskIds?: string[];
 }
