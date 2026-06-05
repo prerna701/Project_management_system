@@ -31,9 +31,8 @@ export class RelationalTasksRepository implements TasksRepository {
     milestoneId?: string;
     withoutMilestone?: boolean;
     assigneeId?: string;
-    parentTaskId?: string | null;
   }): Promise<{ items: Task[]; meta: PaginationMetaDto }> {
-    const { paginationOptions, search, projectId, milestoneId, withoutMilestone, assigneeId, parentTaskId } = options;
+    const { paginationOptions, search, projectId, milestoneId, withoutMilestone, assigneeId } = options;
     const query = this.repo.createQueryBuilder('task').where('task.deletedAt IS NULL');
 
     if (projectId) {
@@ -47,13 +46,6 @@ export class RelationalTasksRepository implements TasksRepository {
     }
     if (assigneeId) {
       query.andWhere('task.assigneeId = :assigneeId', { assigneeId });
-    }
-    if (parentTaskId !== undefined) {
-      if (parentTaskId === null) {
-        query.andWhere('task.parentTaskId IS NULL');
-      } else {
-        query.andWhere('task.parentTaskId = :parentTaskId', { parentTaskId });
-      }
     }
     if (search) {
       query.andWhere('task.title ILIKE :search', { search: `%${search}%` });
@@ -105,7 +97,6 @@ export class RelationalTasksRepository implements TasksRepository {
       .select('task.status', 'status')
       .addSelect('COUNT(task.id)', 'count')
       .where('task.milestoneId = :milestoneId', { milestoneId })
-      .andWhere('task.parentTaskId IS NULL')
       .andWhere('task.deletedAt IS NULL')
       .groupBy('task.status')
       .getRawMany<{ status: TaskStatus; count: string }>();

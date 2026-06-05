@@ -22,7 +22,6 @@ export abstract class TasksRepository {
     milestoneId?: string;
     withoutMilestone?: boolean;
     assigneeId?: string;
-    parentTaskId?: string | null;
   }): Promise<{ items: Task[]; meta: PaginationMetaDto }>;
   abstract create(item: Partial<Task>): Promise<Task>;
   abstract update(id: string, item: Partial<Task>): Promise<Task | null>;

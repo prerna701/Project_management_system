@@ -6,6 +6,7 @@ import {
   Index,
   JoinColumn,
   ManyToOne,
+  OneToMany,
   PrimaryGeneratedColumn,
   UpdateDateColumn,
 } from 'typeorm';
@@ -13,12 +14,12 @@ import { TaskPriority } from '../../../../enums/task-priority.enum';
 import { TaskStatus } from '../../../../enums/task-status.enum';
 import { TaskBillingType } from '../../../../enums/task-billing-type.enum';
 import { MilestoneEntity } from '../../../../../milestones/infrastructure/persistence/relational/entities/milestone.entity';
+import { SubtaskEntity } from '../../../../../subtasks/infrastructure/persistence/relational/entities/subtask.entity';
 
 @Entity({ name: 'tasks' })
 @Index(['projectId'])
 @Index(['milestoneId'])
 @Index(['assigneeId'])
-@Index(['parentTaskId'])
 export class TaskEntity {
   @PrimaryGeneratedColumn('uuid')
   id: string;
@@ -35,9 +36,6 @@ export class TaskEntity {
   })
   @JoinColumn({ name: 'milestoneId' })
   milestone: MilestoneEntity | null;
-
-  @Column({ type: 'uuid', nullable: true })
-  parentTaskId: string | null;
 
   @Column({ type: 'uuid', nullable: true })
   teamId: string | null;
@@ -105,8 +103,8 @@ export class TaskEntity {
   @Column({ type: 'jsonb', default: [] })
   labels: string[];
 
-  @Column({ type: 'jsonb', default: [] })
-  checklist: string[];
+  @OneToMany(() => SubtaskEntity, (subtask) => subtask.task)
+  subtasks: SubtaskEntity[];
 
   @CreateDateColumn()
   createdAt: Date;

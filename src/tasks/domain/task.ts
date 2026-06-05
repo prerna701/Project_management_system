@@ -14,9 +14,6 @@ export class Task {
   milestoneId: string | null;
 
   @ApiPropertyOptional()
-  parentTaskId: string | null;
-
-  @ApiPropertyOptional()
   teamId: string | null;
 
   @ApiProperty()
@@ -81,9 +78,6 @@ export class Task {
 
   @ApiPropertyOptional({ type: [String] })
   labels: string[];
-
-  @ApiPropertyOptional({ type: [String], description: 'Checklist items (for subtasks)' })
-  checklist: string[];
 
   @ApiProperty()
   createdAt: Date;

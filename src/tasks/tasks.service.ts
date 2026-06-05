@@ -29,7 +29,6 @@ export class TasksService {
     return this.repository.findManyWithPagination({
       paginationOptions: paginationOptions || { page: 1, limit: 10 },
       search,
-      parentTaskId: null,
     });
   }
 
@@ -43,7 +42,6 @@ export class TasksService {
       paginationOptions: paginationOptions || { page: 1, limit: 100 },
       search,
       projectId,
-      parentTaskId: null,
       withoutMilestone,
     });
   }
@@ -66,7 +64,6 @@ export class TasksService {
       paginationOptions: paginationOptions || { page: 1, limit: 10 },
       search,
       milestoneId,
-      parentTaskId: null,
     });
   }
 
@@ -124,14 +121,13 @@ export class TasksService {
       await this.activitiesService.log({
         projectId: item.projectId,
         milestoneId: item.milestoneId,
-        taskId: item.parentTaskId ? item.parentTaskId : item.id,
-        subtaskId: item.parentTaskId ? item.id : null,
+        taskId: item.id,
         actorId,
         action: ActivityAction.DELETED,
-        entityType: item.parentTaskId ? ActivityEntityType.SUBTASK : ActivityEntityType.TASK,
+        entityType: ActivityEntityType.TASK,
         entityId: item.id,
-        title: item.parentTaskId ? 'Subtask deleted' : 'Task deleted',
-        description: `${item.parentTaskId ? 'Subtask' : 'Task'} "${item.title}" was deleted`,
+        title: 'Task deleted',
+        description: `Task "${item.title}" was deleted`,
       });
     }
   }
@@ -144,14 +140,13 @@ export class TasksService {
       await this.activitiesService.log({
         projectId: item.projectId,
         milestoneId: item.milestoneId,
-        taskId: item.parentTaskId ? item.parentTaskId : item.id,
-        subtaskId: item.parentTaskId ? item.id : null,
+        taskId: item.id,
         actorId,
         action: ActivityAction.ASSIGNED,
-        entityType: item.parentTaskId ? ActivityEntityType.SUBTASK : ActivityEntityType.TASK,
+        entityType: ActivityEntityType.TASK,
         entityId: item.id,
-        title: item.parentTaskId ? 'Subtask assigned' : 'Task assigned',
-        description: `${item.parentTaskId ? 'Subtask' : 'Task'} "${item.title}" was assigned`,
+        title: 'Task assigned',
+        description: `Task "${item.title}" was assigned`,
         oldValue: existing.assigneeId,
         newValue: item.assigneeId,
       });
@@ -255,7 +250,6 @@ export class TasksService {
       dependencies: dto.dependencies ?? [],
       attachments: dto.attachments ?? [],
       labels: dto.labels ?? [],
-      checklist: [],
     };
   }
 
@@ -298,24 +292,22 @@ export class TasksService {
   ): Promise<void> {
     if (!actorId) return;
 
-    const isSubtask = Boolean(item.parentTaskId);
     const statusChanged = dto.status && dto.status !== existing.status;
 
     await this.activitiesService.log({
       projectId: item.projectId,
       milestoneId: item.milestoneId,
-      taskId: isSubtask ? item.parentTaskId : item.id,
-      subtaskId: isSubtask ? item.id : null,
+      taskId: item.id,
       actorId,
       action: statusChanged ? ActivityAction.STATUS_CHANGED : ActivityAction.UPDATED,
-      entityType: isSubtask ? ActivityEntityType.SUBTASK : ActivityEntityType.TASK,
+      entityType: ActivityEntityType.TASK,
       entityId: item.id,
       title: statusChanged
-        ? `${isSubtask ? 'Subtask' : 'Task'} status changed`
-        : `${isSubtask ? 'Subtask' : 'Task'} updated`,
+        ? 'Task status changed'
+        : 'Task updated',
       description: statusChanged
-        ? `${isSubtask ? 'Subtask' : 'Task'} "${item.title}" changed from ${existing.status} to ${dto.status}`
-        : `${isSubtask ? 'Subtask' : 'Task'} "${item.title}" was updated`,
+        ? `Task "${item.title}" changed from ${existing.status} to ${dto.status}`
+        : `Task "${item.title}" was updated`,
       oldValue: statusChanged ? existing.status : null,
       newValue: statusChanged ? dto.status ?? null : null,
     });

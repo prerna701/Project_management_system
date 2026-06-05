@@ -51,18 +51,16 @@ export class TaskCommentsService {
       parentCommentId: null,
       isEdited: false,
     });
-    const isSubtask = Boolean(task.parentTaskId);
     await this.activitiesService.log({
       projectId: task.projectId,
       milestoneId: task.milestoneId,
-      taskId: isSubtask ? task.parentTaskId : task.id,
-      subtaskId: isSubtask ? task.id : null,
+      taskId: task.id,
       actorId: userId,
       action: ActivityAction.COMMENT_ADDED,
       entityType: ActivityEntityType.COMMENT,
       entityId: item.id,
-      title: isSubtask ? 'Subtask comment added' : 'Task comment added',
-      description: `A comment was added to ${isSubtask ? 'subtask' : 'task'} "${task.title}"`,
+      title: 'Task comment added',
+      description: `A comment was added to task "${task.title}"`,
       metadata: { commentId: item.id },
     });
     return item;
@@ -83,18 +81,16 @@ export class TaskCommentsService {
       isEdited: false,
     });
 
-    const isSubtask = Boolean(task.parentTaskId);
     await this.activitiesService.log({
       projectId: task.projectId,
       milestoneId: task.milestoneId,
-      taskId: isSubtask ? task.parentTaskId : task.id,
-      subtaskId: isSubtask ? task.id : null,
+      taskId: task.id,
       actorId: userId,
       action: ActivityAction.COMMENT_ADDED,
       entityType: ActivityEntityType.COMMENT,
       entityId: item.id,
-      title: isSubtask ? 'Subtask comment replied' : 'Task comment replied',
-      description: `A reply was added to ${isSubtask ? 'subtask' : 'task'} "${task.title}"`,
+      title: 'Task comment replied',
+      description: `A reply was added to task "${task.title}"`,
       metadata: { commentId: item.id, parentCommentId: parent.id },
     });
     return item;

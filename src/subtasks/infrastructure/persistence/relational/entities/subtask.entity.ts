@@ -4,12 +4,15 @@ import {
   DeleteDateColumn,
   Entity,
   Index,
+  JoinColumn,
+  ManyToOne,
   PrimaryGeneratedColumn,
   UpdateDateColumn,
 } from 'typeorm';
 import { TaskPriority } from '../../../../../tasks/enums/task-priority.enum';
 import { TaskStatus } from '../../../../../tasks/enums/task-status.enum';
 import { TaskBillingType } from '../../../../../tasks/enums/task-billing-type.enum';
+import { TaskEntity } from '../../../../../tasks/infrastructure/persistence/relational/entities/task.entity';
 
 @Entity({ name: 'subtasks' })
 @Index(['taskId'])
@@ -24,6 +27,12 @@ export class SubtaskEntity {
 
   @Column({ type: 'uuid' })
   taskId: string;
+
+  @ManyToOne(() => TaskEntity, (task) => task.subtasks, {
+    onDelete: 'CASCADE',
+  })
+  @JoinColumn({ name: 'taskId' })
+  task: TaskEntity;
 
   @Column({ type: 'varchar' })
   title: string;

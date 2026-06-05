@@ -7,7 +7,6 @@ export class TaskMapper {
     item.id = raw.id;
     item.projectId = raw.projectId;
     item.milestoneId = raw.milestoneId;
-    item.parentTaskId = raw.parentTaskId;
     item.teamId = raw.teamId;
     item.title = raw.title;
     item.description = raw.description;
@@ -30,7 +29,6 @@ export class TaskMapper {
     item.dependencies = raw.dependencies ?? [];
     item.attachments = raw.attachments ?? [];
     item.labels = raw.labels ?? [];
-    item.checklist = raw.checklist ?? [];
     item.createdAt = raw.createdAt;
     item.updatedAt = raw.updatedAt;
     item.deletedAt = raw.deletedAt;
@@ -42,7 +40,6 @@ export class TaskMapper {
     if (item.id) entity.id = item.id;
     if (item.projectId !== undefined) entity.projectId = item.projectId;
     if (item.milestoneId !== undefined) entity.milestoneId = item.milestoneId ?? null;
-    if (item.parentTaskId !== undefined) entity.parentTaskId = item.parentTaskId ?? null;
     if (item.teamId !== undefined) entity.teamId = item.teamId ?? null;
     if (item.title !== undefined) entity.title = item.title;
     if (item.description !== undefined) entity.description = item.description ?? null;
@@ -65,7 +62,6 @@ export class TaskMapper {
     if (item.dependencies !== undefined) entity.dependencies = item.dependencies ?? [];
     if (item.attachments !== undefined) entity.attachments = item.attachments ?? [];
     if (item.labels !== undefined) entity.labels = item.labels ?? [];
-    if (item.checklist !== undefined) entity.checklist = item.checklist ?? [];
     return entity;
   }
 }
