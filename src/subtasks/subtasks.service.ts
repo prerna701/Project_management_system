@@ -42,6 +42,7 @@ export class SubtasksService {
     projectId: string,
     dto: CreateSubtaskDto,
     actorId?: string,
+    taskOwnerId?: string | null,
   ): Promise<Subtask> {
     const item = await this.repository.create({
       taskId,
@@ -50,7 +51,7 @@ export class SubtasksService {
       description: dto.description ?? null,
       notes: dto.notes ?? null,
       assigneeId: dto.assigneeId ?? null,
-      ownerId: dto.assigneeId ?? null,
+      ownerId: taskOwnerId ?? null,
       createdBy: actorId ?? null,
       priority: dto.priority ?? TaskPriority.MEDIUM,
       status: dto.status ?? TaskStatus.OPEN,

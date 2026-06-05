@@ -76,7 +76,7 @@ export class SubtasksController {
     @CurrentUser() currentUser: JwtPayloadType,
   ) {
     const task = await this.tasksService.findById(taskId);
-    const item = await this.service.create(taskId, task.projectId, dto, currentUser.id);
+    const item = await this.service.create(taskId, task.projectId, dto, currentUser.id, task.ownerId ?? null);
     return createResponse('Subtask created successfully', item);
   }
 
