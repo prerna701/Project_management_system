@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { TasksRepository } from './infrastructure/persistence/tasks.repository';
 import { Task } from './domain/task';
 import { CreateTaskDto } from './dto/create-task.dto';
@@ -9,10 +9,14 @@ import { IPaginationOptions } from '../common/types/pagination-options';
 import { PaginationMetaDto } from '../common/dto/pagination-response.dto';
 import { TaskPriority } from './enums/task-priority.enum';
 import { TaskStatus } from './enums/task-status.enum';
+import { MilestonesService } from '../milestones/milestones.service';
 
 @Injectable()
 export class TasksService {
-  constructor(private readonly repository: TasksRepository) {}
+  constructor(
+    private readonly repository: TasksRepository,
+    private readonly milestonesService: MilestonesService,
+  ) {}
 
   async findAll(
     paginationOptions?: IPaginationOptions,
@@ -115,6 +119,10 @@ export class TasksService {
   }
 
   async update(id: string, dto: UpdateTaskDto): Promise<Task> {
+    if (dto.milestoneId !== undefined && dto.milestoneId !== null) {
+      await this.ensureMilestoneBelongsToTaskProject(id, dto.milestoneId);
+    }
+
     const payload: Partial<Task> = {
       ...dto,
       startDate: dto.startDate !== undefined ? (dto.startDate ? new Date(dto.startDate) : null) : undefined,
@@ -171,5 +179,17 @@ export class TasksService {
     const { total, completed } = await this.repository.countByProjectId(projectId);
     if (total === 0) return 0;
     return Math.round((completed / total) * 100);
+  }
+
+  private async ensureMilestoneBelongsToTaskProject(
+    taskId: string,
+    milestoneId: string,
+  ): Promise<void> {
+    const task = await this.findById(taskId);
+    const milestone = await this.milestonesService.findById(milestoneId);
+
+    if (milestone.projectId !== task.projectId) {
+      throw new BadRequestException('Milestone does not belong to the task project');
+    }
   }
 }

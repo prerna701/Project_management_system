@@ -15,7 +15,7 @@ import {
   BadRequestException,
 } from '@nestjs/common';
 import { AuthGuard } from '@nestjs/passport';
-import { ApiBearerAuth, ApiPropertyOptional, ApiTags } from '@nestjs/swagger';
+import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import { ProjectsService } from './projects.service';
 import { TasksService } from '../tasks/tasks.service';
 import { MilestonesService } from '../milestones/milestones.service';
@@ -32,14 +32,7 @@ import { AuditLog } from '../audit-logs/audit-log.decorator';
 import { createResponse, createPaginatedResponse } from '../common/utils/base-response';
 import { extractQueryOptions } from '../common/helpers/query-options.helper';
 import { API_PAGE_LIMIT } from '../common/constants/common.constant';
-import { IsOptional, IsUUID } from 'class-validator';
-
-class CreateProjectTaskDto extends CreateTaskDto {
-  @ApiPropertyOptional({ example: 'milestone-uuid' })
-  @IsOptional()
-  @IsUUID()
-  milestoneId?: string;
-}
+class CreateProjectTaskDto extends CreateTaskDto {}
 
 @UseInterceptors(AuditLogInterceptor)
 @ApiBearerAuth()
