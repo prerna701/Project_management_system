@@ -17,13 +17,16 @@ export class RelationalRoleRepository implements RoleRepository {
   ) {}
 
   async findById(id: number): Promise<Role | null> {
-    const entity = await this.roleRepository.findOne({ where: { id } });
+    const { entities, raw } = await this.createRoleCountQuery()
+      .where('role.id = :id', { id })
+      .getRawAndEntities();
+    const entity = this.applyCounts(entities, raw)[0];
     return entity ? RoleMapper.toDomain(entity) : null;
   }
 
   async findAll(): Promise<Role[]> {
-    const entities = await this.roleRepository.find();
-    return entities.map(RoleMapper.toDomain);
+    const { entities, raw } = await this.createRoleCountQuery().getRawAndEntities();
+    return this.applyCounts(entities, raw).map(RoleMapper.toDomain);
   }
 
   async create(role: Partial<Role>): Promise<Role> {
@@ -52,5 +55,33 @@ export class RelationalRoleRepository implements RoleRepository {
 
   async removePermission(roleId: number, permissionId: number): Promise<void> {
     await this.rolePermissionRepository.delete({ roleId, permissionId });
+  }
+
+  private createRoleCountQuery() {
+    return this.roleRepository
+      .createQueryBuilder('role')
+      .addSelect(
+        `(SELECT COUNT(*) FROM "user_roles" "ur" WHERE "ur"."roleId" = role.id)`,
+        'userCount',
+      )
+      .addSelect(
+        `(SELECT COUNT(*) FROM "role_permissions" "rp" WHERE "rp"."roleId" = role.id)`,
+        'permissionCount',
+      );
+  }
+
+  private applyCounts(entities: RoleEntity[], raw: Record<string, unknown>[]) {
+    return entities.map((entity, index) => {
+      const counts = raw[index] ?? {};
+      const roleWithCounts = entity as RoleEntity & {
+        userCount: number;
+        permissionCount: number;
+      };
+
+      roleWithCounts.userCount = Number(counts.userCount ?? 0);
+      roleWithCounts.permissionCount = Number(counts.permissionCount ?? 0);
+
+      return entity;
+    });
   }
 }
