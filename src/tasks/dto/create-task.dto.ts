@@ -21,6 +21,11 @@ export class CreateTaskDto {
   @IsString()
   title: string;
 
+  @ApiPropertyOptional({ example: 'milestone-uuid' })
+  @IsOptional()
+  @IsUUID()
+  milestoneId?: string;
+
   @ApiPropertyOptional({ example: 'Build auth endpoint' })
   @IsOptional()
   @IsString()

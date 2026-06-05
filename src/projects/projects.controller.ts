@@ -12,11 +12,13 @@ import {
   SetMetadata,
   UseGuards,
   UseInterceptors,
+  BadRequestException,
 } from '@nestjs/common';
 import { AuthGuard } from '@nestjs/passport';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import { ProjectsService } from './projects.service';
 import { TasksService } from '../tasks/tasks.service';
+import { MilestonesService } from '../milestones/milestones.service';
 import { CreateProjectDto } from './dto/create-project.dto';
 import { CreateTaskDto } from '../tasks/dto/create-task.dto';
 import { UpdateProjectDto } from './dto/update-project.dto';
@@ -30,6 +32,7 @@ import { AuditLog } from '../audit-logs/audit-log.decorator';
 import { createResponse, createPaginatedResponse } from '../common/utils/base-response';
 import { extractQueryOptions } from '../common/helpers/query-options.helper';
 import { API_PAGE_LIMIT } from '../common/constants/common.constant';
+class CreateProjectTaskDto extends CreateTaskDto {}
 
 @UseInterceptors(AuditLogInterceptor)
 @ApiBearerAuth()
@@ -40,6 +43,7 @@ export class ProjectsController {
   constructor(
     private readonly service: ProjectsService,
     private readonly tasksService: TasksService,
+    private readonly milestonesService: MilestonesService,
   ) {}
 
   @Get()
@@ -223,5 +227,15 @@ export class ProjectsController {
   async portalUsers(@Param('id') id: string) {
     const items = await this.service.getPortalUsers(id);
     return createResponse('Portal users fetched successfully', items);
+  }
+
+  private async ensureMilestoneBelongsToProject(
+    projectId: string,
+    milestoneId: string,
+  ): Promise<void> {
+    const milestone = await this.milestonesService.findById(milestoneId);
+    if (milestone.projectId !== projectId) {
+      throw new BadRequestException('Milestone does not belong to the project');
+    }
   }
 }
