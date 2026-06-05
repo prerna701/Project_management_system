@@ -4,10 +4,12 @@ import {
   DeleteDateColumn,
   Entity,
   Index,
+  OneToMany,
   PrimaryGeneratedColumn,
   UpdateDateColumn,
 } from 'typeorm';
 import { MilestoneStatus } from '../../../../enums/milestone-status.enum';
+import { TaskEntity } from '../../../../../tasks/infrastructure/persistence/relational/entities/task.entity';
 
 @Entity({ name: 'milestones' })
 @Index(['projectId'])
@@ -44,6 +46,9 @@ export class MilestoneEntity {
 
   @Column({ type: 'jsonb', default: [] })
   comments: string[];
+
+  @OneToMany(() => TaskEntity, (task) => task.milestone)
+  tasks: TaskEntity[];
 
   @CreateDateColumn()
   createdAt: Date;

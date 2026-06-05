@@ -4,12 +4,15 @@ import {
   DeleteDateColumn,
   Entity,
   Index,
+  JoinColumn,
+  ManyToOne,
   PrimaryGeneratedColumn,
   UpdateDateColumn,
 } from 'typeorm';
 import { TaskPriority } from '../../../../enums/task-priority.enum';
 import { TaskStatus } from '../../../../enums/task-status.enum';
 import { TaskBillingType } from '../../../../enums/task-billing-type.enum';
+import { MilestoneEntity } from '../../../../../milestones/infrastructure/persistence/relational/entities/milestone.entity';
 
 @Entity({ name: 'tasks' })
 @Index(['projectId'])
@@ -25,6 +28,13 @@ export class TaskEntity {
 
   @Column({ type: 'uuid', nullable: true })
   milestoneId: string | null;
+
+  @ManyToOne(() => MilestoneEntity, (milestone) => milestone.tasks, {
+    nullable: true,
+    onDelete: 'SET NULL',
+  })
+  @JoinColumn({ name: 'milestoneId' })
+  milestone: MilestoneEntity | null;
 
   @Column({ type: 'uuid', nullable: true })
   parentTaskId: string | null;
