@@ -5,6 +5,7 @@ import { RelationalSubtaskCommentsPersistenceModule } from './infrastructure/per
 import { ProjectActivitiesModule } from '../project-activities/project-activities.module';
 import { SubtasksModule } from '../subtasks/subtasks.module';
 import { CommentsModule } from '../comments/comments.module';
+import { AuditLogsModule } from '../audit-logs/audit-logs.module';
 
 @Module({
   imports: [
@@ -12,6 +13,7 @@ import { CommentsModule } from '../comments/comments.module';
     ProjectActivitiesModule,
     SubtasksModule,
     CommentsModule,
+    AuditLogsModule,
   ],
   controllers: [SubtaskCommentsController],
   providers: [SubtaskCommentsService],
