@@ -8,18 +8,15 @@ import { UserSeedService } from './user/user-seed.service';
 import { UserRoleAssignmentSeedService } from './user-role-assignment/user-role-assignment-seed.service';
 
 const runSeed = async () => {
-  const app = await NestFactory.create(SeedModule);
+  const app = await NestFactory.create(SeedModule, { logger: false });
 
-  console.log('🌱 Starting database seeding...\n');
-
-  // Order matters — FKs must exist before dependants
+  // Order matters: FKs must exist before dependants.
   await app.get(RoleSeedService).run();
   await app.get(PermissionSeedService).run();
   await app.get(RolePermissionSeedService).run();
   await app.get(UserSeedService).run();
   await app.get(UserRoleAssignmentSeedService).run();
 
-  console.log('\n✅ Seeding completed!');
   await app.close();
 };
 

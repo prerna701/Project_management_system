@@ -29,7 +29,6 @@ export class RoleSeedService {
 
       if (!existing) {
         await this.roleRepo.save(this.roleRepo.create(role));
-        console.log(`Seeded role: ${role.name}`);
         continue;
       }
 
@@ -37,7 +36,6 @@ export class RoleSeedService {
         name: role.name,
         slug: role.slug,
       });
-      console.log(`Role already exists, updated if needed: ${role.name}`);
     }
 
     await this.roleRepo.query(

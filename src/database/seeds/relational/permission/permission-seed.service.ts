@@ -72,9 +72,7 @@ export class PermissionSeedService {
       const existing = await this.permissionRepo.findOne({ where: { name: perm.name } });
       if (!existing) {
         await this.permissionRepo.save(this.permissionRepo.create(perm));
-        console.log(`✅ Seeded permission: ${perm.name}`);
       } else {
-        console.log(`⚪ Permission already exists: ${perm.name}`);
       }
     }
   }

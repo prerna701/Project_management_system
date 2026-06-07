@@ -21,13 +21,11 @@ export class UserRoleAssignmentSeedService {
 
     const adminUser = await this.userRepo.findOne({ where: { email: adminEmail } });
     if (!adminUser) {
-      console.log(`⚠️  User not found: ${adminEmail} — skipping role assignment`);
       return;
     }
 
     const adminRole = await this.roleRepo.findOne({ where: { slug: 'admin' } });
     if (!adminRole) {
-      console.log(`⚠️  Role 'admin' not found — skipping role assignment`);
       return;
     }
 
@@ -36,13 +34,11 @@ export class UserRoleAssignmentSeedService {
     });
 
     if (existing) {
-      console.log(`⚪ Admin role already assigned to ${adminEmail}`);
       return;
     }
 
     await this.userRoleRepo.save(
       this.userRoleRepo.create({ userId: adminUser.id, roleId: adminRole.id }),
     );
-    console.log(`✅ Assigned Admin role to ${adminEmail}`);
   }
 }

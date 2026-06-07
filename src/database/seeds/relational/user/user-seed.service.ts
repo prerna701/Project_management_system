@@ -36,9 +36,7 @@ export class UserSeedService {
           role: adminRole ?? undefined,
         }),
       );
-      console.log(`✅ Admin user seeded: ${adminEmail}`);
     } else {
-      console.log(`⚪ Admin user already exists: ${adminEmail}`);
     }
   }
 }
