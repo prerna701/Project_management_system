@@ -15,4 +15,7 @@ export class Role {
 
   @ApiProperty({ type: Number })
   permissionCount?: number;
+
+  @ApiProperty({ type: () => [Object] })
+  permissions?: { id: number }[];
 }

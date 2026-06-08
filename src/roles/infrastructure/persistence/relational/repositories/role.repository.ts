@@ -21,7 +21,15 @@ export class RelationalRoleRepository implements RoleRepository {
       .where('role.id = :id', { id })
       .getRawAndEntities();
     const entity = this.applyCounts(entities, raw)[0];
-    return entity ? RoleMapper.toDomain(entity) : null;
+    if (!entity) return null;
+
+    const rolePermissions = await this.rolePermissionRepository.find({
+      where: { roleId: id },
+      select: ['permissionId'],
+    });
+    (entity as any).permissions = rolePermissions.map((rp) => ({ id: rp.permissionId }));
+
+    return RoleMapper.toDomain(entity);
   }
 
   async findAll(): Promise<Role[]> {

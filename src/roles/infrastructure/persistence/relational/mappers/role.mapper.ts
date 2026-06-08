@@ -9,6 +9,9 @@ export class RoleMapper {
     role.slug = raw.slug;
     role.userCount = (raw as any).userCount ?? 0;
     role.permissionCount = (raw as any).permissionCount ?? 0;
+    if ((raw as any).permissions) {
+      role.permissions = (raw as any).permissions;
+    }
     return role;
   }
 
