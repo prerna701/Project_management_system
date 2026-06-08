@@ -23,6 +23,15 @@ export class UserMapper {
     } else if (raw.userRoles?.length > 0 && raw.userRoles[0]?.role) {
       user.role = RoleMapper.toDomain(raw.userRoles[0].role);
     }
+    if (raw.userRoles?.length > 0) {
+      user.roles = raw.userRoles
+        .filter((ur) => ur.role)
+        .map((ur) => ({ id: String(ur.role.id), name: ur.role.name }));
+    } else if (raw.role) {
+      user.roles = [{ id: String(raw.role.id), name: raw.role.name }];
+    } else {
+      user.roles = [];
+    }
     return user;
   }
 

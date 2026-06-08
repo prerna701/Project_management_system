@@ -72,7 +72,7 @@ export class RelationalProjectsRepository implements ProjectsRepository {
     const entities = await query
       .skip((page - 1) * limit)
       .take(limit)
-      .orderBy('project.createdAt', 'DESC')
+      .orderBy('project.createdAt', 'ASC')
       .getMany();
 
     return {
@@ -168,7 +168,7 @@ export class RelationalProjectsRepository implements ProjectsRepository {
         )`,
         { userId },
       )
-      .orderBy('project.createdAt', 'DESC');
+      .orderBy('project.createdAt', 'ASC');
 
     const entities = await query.getMany();
     return entities.map(ProjectMapper.toDomain);
@@ -236,6 +236,13 @@ export class RelationalProjectsRepository implements ProjectsRepository {
           WHERE team_member."teamId" = project."assignedTeamId"
             AND team_member."userId" = :userId
             AND team_member."isActive" = true
+        )
+        OR EXISTS (
+          SELECT 1
+          FROM teams team
+          WHERE team.id = project."assignedTeamId"
+            AND team."teamLeadId" = :userId
+            AND team."isActive" = true
         )
       )`,
       {

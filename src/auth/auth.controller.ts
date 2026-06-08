@@ -83,6 +83,15 @@ export class AuthController {
   }
 
   @ApiBearerAuth()
+  @UseGuards(AuthGuard('jwt'))
+  @Get('my')
+  @HttpCode(HttpStatus.OK)
+  async my(@CurrentUser() userPayload: JwtPayloadType) {
+    const data = await this.authService.myData(userPayload.id);
+    return createResponse('User context fetched', data);
+  }
+
+  @ApiBearerAuth()
   @UseGuards(AuthGuard('jwt-refresh'))
   @Post('refresh')
   @HttpCode(HttpStatus.OK)

@@ -7,6 +7,8 @@ import {
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { JwtService } from '@nestjs/jwt';
+import { InjectRepository } from '@nestjs/typeorm';
+import { Repository } from 'typeorm';
 import bcrypt from 'bcryptjs';
 import { TryCatch } from '../common/utils/try-catch.util';
 import ms, { StringValue } from 'ms';
@@ -17,6 +19,8 @@ import { AuthEmailLoginDto } from './dto/auth-email-login.dto';
 import { LoginResponseDto } from './dto/login-response.dto';
 import { JwtPayloadType } from './strategies/types/jwt-payload.type';
 import { JwtRefreshPayloadType } from './strategies/types/jwt-refresh-payload.type';
+import { TeamMemberEntity } from '../teams/infrastructure/persistence/relational/entities/team-member.entity';
+import { TeamEntity } from '../teams/infrastructure/persistence/relational/entities/team.entity';
 
 @Injectable()
 export class AuthService {
@@ -25,6 +29,10 @@ export class AuthService {
     private readonly usersService: UsersService,
     private readonly mailService: MailService,
     private readonly configService: ConfigService<AllConfigType>,
+    @InjectRepository(TeamMemberEntity)
+    private readonly teamMemberRepo: Repository<TeamMemberEntity>,
+    @InjectRepository(TeamEntity)
+    private readonly teamRepo: Repository<TeamEntity>,
   ) {}
 
   @TryCatch('Login failed')
@@ -180,6 +188,22 @@ export class AuthService {
     const permissions = await this.usersService.getUserPermissions(userJwtPayload.id);
 
     return { ...user, roles, permissions };
+  }
+
+  async myData(userId: string): Promise<{ teamIds: string[] }> {
+    const [memberships, ledTeams] = await Promise.all([
+      this.teamMemberRepo.find({
+        where: { userId, isActive: true },
+        select: ['teamId'],
+      }),
+      this.teamRepo.find({
+        where: { teamLeadId: userId, isActive: true },
+        select: ['id'],
+      }),
+    ]);
+    const memberTeamIds = memberships.map((m) => m.teamId);
+    const ledTeamIds = ledTeams.map((t) => t.id);
+    return { teamIds: [...new Set([...memberTeamIds, ...ledTeamIds])] };
   }
 
   async refreshToken(data: Pick<JwtRefreshPayloadType, 'id'>): Promise<Omit<LoginResponseDto, 'user' | 'roles' | 'permissions'>> {

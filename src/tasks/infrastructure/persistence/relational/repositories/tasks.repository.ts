@@ -57,7 +57,7 @@ export class RelationalTasksRepository implements TasksRepository {
     const entities = await query
       .skip((page - 1) * limit)
       .take(limit)
-      .orderBy('task.createdAt', 'DESC')
+      .orderBy('task.createdAt', 'ASC')
       .getMany();
 
     return {

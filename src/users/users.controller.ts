@@ -31,8 +31,6 @@ import { AssignPermissionDto } from '../permissions/dto/assign-permission.dto';
 import { User } from './domain/user';
 import { CurrentUser } from '../common/decorators/current-user.decorator';
 import { RolesGuard } from '../roles/roles.guard';
-import { Roles } from '../roles/roles.decorator';
-import { RoleEnum } from '../roles/roles.enum';
 import { AuditLogInterceptor } from '../audit-logs/audit-log.interceptor';
 import { AuditLog } from '../audit-logs/audit-log.decorator';
 import { createResponse, createPaginatedResponse } from '../common/utils/base-response';
@@ -45,7 +43,6 @@ import { NullableType } from '../common/types/nullable.type';
 // @SetMetadata('abilities', [...]) on each handler activates it per-route.
 @UseInterceptors(AuditLogInterceptor)
 @ApiBearerAuth()
-@Roles(RoleEnum.admin)
 @UseGuards(AuthGuard('jwt'), RolesGuard)
 @ApiTags('Users')
 @Controller({ path: 'users', version: '1' })
@@ -176,6 +173,7 @@ export class UsersController {
   @Get(':id/roles')
   @HttpCode(HttpStatus.OK)
   @ApiParam({ name: 'id', type: String })
+  @SetMetadata('abilities', [['read', 'users']])
   async getUserRoles(@Param('id') id: string): Promise<any> {
     const roles = await this.usersService.getUserRoles(id);
     return createResponse('User roles fetched successfully', roles);
@@ -184,6 +182,7 @@ export class UsersController {
   @Get(':id/permissions')
   @HttpCode(HttpStatus.OK)
   @ApiParam({ name: 'id', type: String })
+  @SetMetadata('abilities', [['read', 'users']])
   async getUserPermissions(@Param('id') id: string): Promise<any> {
     const perms = await this.usersService.getUserPermissions(id);
     return createResponse('User permissions fetched successfully', perms);

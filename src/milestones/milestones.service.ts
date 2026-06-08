@@ -17,7 +17,6 @@ export class MilestonesService {
     
     private readonly repository: MilestonesRepository,
     private readonly activitiesService: ProjectActivitiesService,
-  ,
     private readonly tasksRepository: TasksRepository,
   ) {}
 
@@ -38,7 +37,7 @@ export class MilestonesService {
     return item;
   }
 
-  async create(projectId: string, dto: CreateMilestoneDto): Promise<Milestone> {
+  async create(projectId: string, dto: CreateMilestoneDto, actorId?: string): Promise<Milestone> {
     const taskIds = this.getUniqueTaskIds(dto.taskIds);
 
     if (taskIds.length > 0) {
@@ -127,27 +126,10 @@ export class MilestonesService {
     return this.repository.findStatusHistory(milestoneId);
   }
 
- private getUniqueTaskIds(taskIds: string[] = []): string[] {
-  return [...new Set(taskIds)];
-}
-  private async ensureTasksBelongToProject(
-    projectId: string,
-    taskIds: string[],
-  ): Promise<void> {
-    const matchingTaskIds = await this.tasksRepository.findProjectTaskIds(projectId, taskIds);
-
-    if (matchingTaskIds.length !== taskIds.length) {
-      const matching = new Set(matchingTaskIds);
-      const invalidTaskIds = taskIds.filter((taskId) => !matching.has(taskId));
-      throw new BadRequestException(
-        `Tasks do not belong to project or were not found: ${invalidTaskIds.join(', ')}`,
-      );
-    }
+  private getUniqueTaskIds(taskIds: string[] = []): string[] {
+    return [...new Set(taskIds)];
   }
 
- private getUniqueTaskIds(taskIds: string[] = []): string[] {
-  return [...new Set(taskIds)];
-}
   private async ensureTasksBelongToProject(
     projectId: string,
     taskIds: string[],

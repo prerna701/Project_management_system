@@ -79,6 +79,12 @@ export class PermissionSeedService {
       { name: 'issues.add', label: 'Add Issues', module: 'issues' },
       { name: 'issues.edit', label: 'Edit Issues', module: 'issues' },
       { name: 'issues.delete', label: 'Delete Issues', module: 'issues' },
+      // Manage (full-control) permissions
+      { name: 'users.manage',      label: 'Manage Users',      module: 'users'      },
+      { name: 'projects.manage',   label: 'Manage Projects',   module: 'projects'   },
+      { name: 'tasks.manage',      label: 'Manage Tasks',      module: 'tasks'      },
+      { name: 'teams.manage',      label: 'Manage Teams',      module: 'teams'      },
+      { name: 'milestones.manage', label: 'Manage Milestones', module: 'milestones' },
       // Project Activities
       { name: 'project_activities.browse', label: 'Browse Project Activities', module: 'project_activities' },
       // Release Notes
