@@ -21,6 +21,7 @@ import { TeamsModule } from './teams/teams.module';
 import { ProjectsModule } from './projects/projects.module';
 import { MilestonesModule } from './milestones/milestones.module';
 import { TasksModule } from './tasks/tasks.module';
+import { CommentsModule } from './comments/comments.module';
 import { ProjectCommentsModule } from './project-comments/project-comments.module';
 import { ProjectActivitiesModule } from './project-activities/project-activities.module';
 import { InvitationTemplatesModule } from './invitation-templates/invitation-templates.module';
@@ -56,6 +57,7 @@ const infrastructureDatabaseModule = TypeOrmModule.forRootAsync({
     ProjectsModule,
     MilestonesModule,
     TasksModule,
+    CommentsModule,
     ProjectCommentsModule,
     ProjectActivitiesModule,
     InvitationTemplatesModule,

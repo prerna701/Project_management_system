@@ -29,6 +29,7 @@ export type Subjects =
   | 'project_tags'
   | 'milestones'
   | 'teams'
+  | 'comments'
   | 'all';
 
 export type AppAbility = MongoAbility<[Actions, Subjects]>;
