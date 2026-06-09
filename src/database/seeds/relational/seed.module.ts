@@ -9,7 +9,10 @@ import { RoleSeedModule } from './role/role-seed.module';
 import { PermissionSeedModule } from './permission/permission-seed.module';
 import { RolePermissionSeedModule } from './role-permission/role-permission-seed.module';
 import { UserSeedModule } from './user/user-seed.module';
+import { UserRoleAccountsSeedModule } from './user/user-role-accounts-seed.module';
 import { UserRoleAssignmentSeedModule } from './user-role-assignment/user-role-assignment-seed.module';
+import { ProjectSeedModule } from './project/project-seed.module';
+import { TaskSeedModule } from './task/task-seed.module';
 
 @Module({
   imports: [
@@ -27,7 +30,10 @@ import { UserRoleAssignmentSeedModule } from './user-role-assignment/user-role-a
     PermissionSeedModule,
     RolePermissionSeedModule,
     UserSeedModule,
+    UserRoleAccountsSeedModule,
     UserRoleAssignmentSeedModule,
+    ProjectSeedModule,
+    TaskSeedModule,
   ],
 })
 export class SeedModule {}
