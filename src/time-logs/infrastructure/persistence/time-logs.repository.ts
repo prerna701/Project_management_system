@@ -2,6 +2,7 @@ import { PaginationMetaDto } from '../../../common/dto/pagination-response.dto';
 import { IPaginationOptions } from '../../../common/types/pagination-options';
 import { TimeLog } from '../../domain/time-log';
 import { TimeLogStatus } from '../../enums/time-log-status.enum';
+import { TaskStatus } from '../../../tasks/enums/task-status.enum';
 
 export interface TimeLogFilters {
   from?: Date;
@@ -47,6 +48,13 @@ export abstract class TimeLogsRepository {
   }): Promise<{ items: TimeLog[]; meta: PaginationMetaDto }>;
   abstract create(item: Partial<TimeLog>): Promise<TimeLog>;
   abstract update(id: string, item: Partial<TimeLog>): Promise<TimeLog | null>;
+  abstract updateLogAndTaskStatus(
+    id: string,
+    logUpdate: Partial<TimeLog>,
+    taskStatus: TaskStatus,
+  ): Promise<TimeLog | null>;
+  abstract createAndStartTask(item: Partial<TimeLog>): Promise<TimeLog>;
+  abstract removeActiveByUser(userId: string): Promise<TimeLog | null>;
   abstract sumApprovedMinutesByTask(taskId: string): Promise<number>;
   abstract getReportSummary(
     filters: TimeLogFilters,

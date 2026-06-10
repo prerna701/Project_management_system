@@ -83,6 +83,16 @@ export class NotificationTemplateRegistry {
           message: `${replyActor} replied to your ${value('entityType', '')} comment.`,
         };
       }
+      case NotificationType.TIMESHEET_APPROVED:
+        return {
+          title: 'Time log approved',
+          message: `Your ${value('duration', '')} time log for ${value('taskTitle', 'the task')} was approved.`,
+        };
+      case NotificationType.TIMESHEET_REJECTED:
+        return {
+          title: 'Time log needs correction',
+          message: `Your time log for ${value('taskTitle', 'the task')} was rejected: ${value('rejectionReason', 'Please review and correct the entry.')}`,
+        };
       default:
         return {
           title: value('title', 'Notification'),

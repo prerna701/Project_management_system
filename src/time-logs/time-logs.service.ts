@@ -3,13 +3,16 @@ import {
   ConflictException,
   ForbiddenException,
   Injectable,
+  Logger,
   NotFoundException,
 } from '@nestjs/common';
 import { JwtPayloadType } from '../auth/strategies/types/jwt-payload.type';
 import { IPaginationOptions } from '../common/types/pagination-options';
 import { ProjectsRepository } from '../projects/infrastructure/persistence/projects.repository';
+import { NotificationsService } from '../notifications/notifications.service';
 import { RoleEnum } from '../roles/roles.enum';
 import { TasksRepository } from '../tasks/infrastructure/persistence/tasks.repository';
+import { TaskStatus } from '../tasks/enums/task-status.enum';
 import { TasksService } from '../tasks/tasks.service';
 import { UserRepository } from '../users/infrastructure/persistence/user.repository';
 import { CreateManualTimeLogDto } from './dto/create-manual-time-log.dto';
@@ -31,12 +34,15 @@ import {
 
 @Injectable()
 export class TimeLogsService {
+  private readonly logger = new Logger(TimeLogsService.name);
+
   constructor(
     private readonly repository: TimeLogsRepository,
     private readonly tasksService: TasksService,
     private readonly tasksRepository: TasksRepository,
     private readonly projectsRepository: ProjectsRepository,
     private readonly userRepository: UserRepository,
+    private readonly notificationsService: NotificationsService,
   ) {}
 
   async startTimer(
@@ -52,7 +58,7 @@ export class TimeLogsService {
     await this.assertCanLogTask(task, user);
     const now = new Date();
     try {
-      return await this.repository.create({
+      return await this.repository.createAndStartTask({
         taskId: task.id,
         projectId: task.projectId,
         userId: user.id,
@@ -82,6 +88,14 @@ export class TimeLogsService {
 
   async getActiveTimer(userId: string): Promise<TimeLog | null> {
     return this.repository.findActiveByUser(userId);
+  }
+
+  async resetActiveTimer(userId: string): Promise<TimeLog> {
+    const removed = await this.repository.removeActiveByUser(userId);
+    if (!removed) {
+      throw new NotFoundException('No active timer was found');
+    }
+    return removed;
   }
 
   async getLoggableOptions(user: JwtPayloadType): Promise<
@@ -212,9 +226,12 @@ export class TimeLogsService {
     if (log.userId !== userId) {
       throw new ForbiddenException('You can only edit your own time logs');
     }
-    if (log.status !== TimeLogStatus.DRAFT || !log.endedAt) {
+    if (
+      ![TimeLogStatus.DRAFT, TimeLogStatus.REJECTED].includes(log.status) ||
+      !log.endedAt
+    ) {
       throw new BadRequestException(
-        'Only stopped draft time logs can be edited',
+        'Only stopped draft or rejected time logs can be edited',
       );
     }
     const startedAt = dto.startedAt
@@ -229,6 +246,10 @@ export class TimeLogsService {
         startedAt,
         endedAt,
         durationMinutes: this.diffMinutes(startedAt, endedAt),
+        status: TimeLogStatus.DRAFT,
+        reviewedById: null,
+        reviewedAt: null,
+        rejectionReason: null,
       }),
     );
   }
@@ -248,13 +269,32 @@ export class TimeLogsService {
     if (log.durationMinutes <= 0) {
       throw new BadRequestException('A time log must contain worked time');
     }
-    return this.requireUpdated(
+    const item = this.requireUpdated(
       id,
-      await this.repository.update(id, {
-        status: TimeLogStatus.SUBMITTED,
-        rejectionReason: null,
-      }),
+      await this.repository.updateLogAndTaskStatus(
+        id,
+        {
+          status: TimeLogStatus.SUBMITTED,
+          rejectionReason: null,
+        },
+        TaskStatus.REVIEW,
+      ),
     );
+    const task = await this.tasksRepository.findById(log.taskId);
+    if (task?.reporterId) {
+      this.notificationsService
+        .notifyTaskStatusChanged({
+          taskId: task.id,
+          taskTitle: task.title,
+          newStatus: TaskStatus.REVIEW,
+          reporterId: task.reporterId,
+          assigneeId: task.assigneeId,
+          changedById: user.id,
+          previousStatus: task.status,
+        })
+        .catch(() => undefined);
+    }
+    return item;
   }
 
   async approve(
@@ -262,20 +302,25 @@ export class TimeLogsService {
     reviewer: JwtPayloadType,
   ): Promise<TimeLog> {
     const log = await this.requireById(id);
-    await this.assertCanReview(log.projectId, reviewer);
+    await this.assertCanReview(log.taskId, log.projectId, reviewer);
     if (log.status !== TimeLogStatus.SUBMITTED) {
       throw new BadRequestException('Only submitted logs can be approved');
     }
     const item = this.requireUpdated(
       id,
-      await this.repository.update(id, {
-        status: TimeLogStatus.APPROVED,
-        reviewedById: reviewer.id,
-        reviewedAt: new Date(),
-        rejectionReason: null,
-      }),
+      await this.repository.updateLogAndTaskStatus(
+        id,
+        {
+          status: TimeLogStatus.APPROVED,
+          reviewedById: reviewer.id,
+          reviewedAt: new Date(),
+          rejectionReason: null,
+        },
+        TaskStatus.DONE,
+      ),
     );
     await this.syncTaskLoggedHours(log.taskId);
+    await this.notifyReviewedSafely(log, reviewer.id, true);
     return item;
   }
 
@@ -285,22 +330,33 @@ export class TimeLogsService {
     dto: ReviewTimeLogDto,
   ): Promise<TimeLog> {
     const log = await this.requireById(id);
-    await this.assertCanReview(log.projectId, reviewer);
+    await this.assertCanReview(log.taskId, log.projectId, reviewer);
     if (log.status !== TimeLogStatus.SUBMITTED) {
       throw new BadRequestException('Only submitted logs can be rejected');
     }
     if (!dto.reason?.trim()) {
       throw new BadRequestException('A rejection reason is required');
     }
-    return this.requireUpdated(
+    const item = this.requireUpdated(
       id,
-      await this.repository.update(id, {
-        status: TimeLogStatus.REJECTED,
-        reviewedById: reviewer.id,
-        reviewedAt: new Date(),
-        rejectionReason: dto.reason.trim(),
-      }),
+      await this.repository.updateLogAndTaskStatus(
+        id,
+        {
+          status: TimeLogStatus.REJECTED,
+          reviewedById: reviewer.id,
+          reviewedAt: new Date(),
+          rejectionReason: dto.reason.trim(),
+        },
+        TaskStatus.IN_PROGRESS,
+      ),
     );
+    await this.notifyReviewedSafely(
+      log,
+      reviewer.id,
+      false,
+      dto.reason.trim(),
+    );
+    return item;
   }
 
   async listMine(
@@ -381,17 +437,20 @@ export class TimeLogsService {
   }
 
   private async assertCanReview(
+    taskId: string,
     projectId: string,
     user: JwtPayloadType,
   ): Promise<void> {
+    const task = await this.tasksRepository.findById(taskId);
     if (
       (await this.isAdmin(user)) ||
+      task?.reporterId === user.id ||
       (await this.projectsRepository.canManageProject(projectId, user.id))
     ) {
       return;
     }
     throw new ForbiddenException(
-      'Only the project manager, team leader, or admin can review time logs',
+      'Only the task reporter, project manager, team leader, or admin can review time logs',
     );
   }
 
@@ -415,6 +474,33 @@ export class TimeLogsService {
     await this.tasksRepository.update(taskId, {
       loggedHours: Number((minutes / 60).toFixed(2)),
     });
+  }
+
+  private async notifyReviewedSafely(
+    log: TimeLog,
+    reviewerId: string,
+    approved: boolean,
+    rejectionReason?: string,
+  ): Promise<void> {
+    try {
+      const task = await this.tasksRepository.findById(log.taskId);
+      await this.notificationsService.notifyTimesheetReviewed({
+        approved,
+        timeLogId: log.id,
+        recipientId: log.userId,
+        reviewerId,
+        projectId: log.projectId,
+        taskId: log.taskId,
+        taskTitle: task?.title,
+        durationMinutes: log.durationMinutes,
+        rejectionReason,
+      });
+    } catch (error) {
+      this.logger.error(
+        `Time log ${log.id} was reviewed but its notification could not be delivered`,
+        error instanceof Error ? error.stack : String(error),
+      );
+    }
   }
 
   private diffMinutes(from: Date, to: Date): number {

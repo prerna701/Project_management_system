@@ -43,9 +43,13 @@ export class RelationalTasksRepository implements TasksRepository {
       WHERE task."deletedAt" IS NULL
         AND task."parentTaskId" IS NULL
         AND (
-          $2::boolean = true
-          OR task."assigneeId" = $1
-          OR EXISTS (
+            $2::boolean = true
+            OR task."assigneeId" = $1
+            OR (
+              task."assigneeId" IS NULL
+              AND task."reporterId" = $1
+            )
+            OR EXISTS (
             SELECT 1
             FROM team_members tm
             WHERE tm."teamId" = project."assignedTeamId"

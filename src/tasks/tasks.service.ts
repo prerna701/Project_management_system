@@ -67,13 +67,17 @@ export class TasksService {
     currentUser: JwtPayloadType,
   ): Promise<Task> {
     await this.assertProjectAccess(projectId, currentUser);
-    await this.assertValidAssignee(projectId, dto.assigneeId);
+    const assigneeId = await this.resolveTaskAssignee(
+      projectId,
+      dto.assigneeId,
+      currentUser,
+    );
     const item = await this.repository.create({
       projectId,
       milestoneId: dto.milestoneId ?? null,
       title: dto.title,
       description: dto.description ?? null,
-      assigneeId: dto.assigneeId ?? null,
+      assigneeId,
       reporterId: dto.reporterId ?? currentUser.id,
       priority: dto.priority ?? TaskPriority.MEDIUM,
       status: dto.status ?? TaskStatus.OPEN,
@@ -135,13 +139,17 @@ export class TasksService {
     currentUser: JwtPayloadType,
   ): Promise<Task> {
     await this.assertProjectAccess(dto.projectId, currentUser);
-    await this.assertValidAssignee(dto.projectId, dto.assigneeId);
+    const assigneeId = await this.resolveTaskAssignee(
+      dto.projectId,
+      dto.assigneeId,
+      currentUser,
+    );
     const item = await this.repository.create({
       projectId: dto.projectId,
       milestoneId,
       title: dto.title,
       description: dto.description ?? null,
-      assigneeId: dto.assigneeId ?? null,
+      assigneeId,
       reporterId: dto.reporterId ?? currentUser.id,
       priority: dto.priority ?? TaskPriority.MEDIUM,
       status: dto.status ?? TaskStatus.OPEN,
@@ -243,13 +251,18 @@ export class TasksService {
     currentUser: JwtPayloadType,
   ): Promise<Task> {
     const parent = await this.findById(parentTaskId, currentUser);
+    const assigneeId = await this.resolveTaskAssignee(
+      parent.projectId,
+      dto.assigneeId,
+      currentUser,
+    );
     const item = await this.repository.create({
       projectId: parent.projectId,
       milestoneId: parent.milestoneId,
       parentTaskId,
       title: dto.title,
       description: null,
-      assigneeId: dto.assigneeId ?? null,
+      assigneeId,
       reporterId: currentUser.id,
       priority: TaskPriority.MEDIUM,
       status: dto.status ?? TaskStatus.OPEN,
@@ -419,5 +432,57 @@ export class TasksService {
         'The assignee must be the project manager, creator, or an active member of the assigned team',
       );
     }
+  }
+
+  private async resolveTaskAssignee(
+    projectId: string,
+    requestedAssigneeId: string | null | undefined,
+    currentUser: JwtPayloadType,
+  ): Promise<string | null> {
+    const canAssign = await this.canAssignTasks(currentUser);
+
+    if (!canAssign) {
+      if (
+        requestedAssigneeId &&
+        String(requestedAssigneeId) !== String(currentUser.id)
+      ) {
+        throw new ForbiddenException(
+          'You cannot assign tasks to another user',
+        );
+      }
+      await this.assertValidAssignee(projectId, currentUser.id);
+      return currentUser.id;
+    }
+
+    await this.assertValidAssignee(projectId, requestedAssigneeId);
+    return requestedAssigneeId ?? null;
+  }
+
+  private async canAssignTasks(currentUser: JwtPayloadType): Promise<boolean> {
+    const roles = await this.userRepository.getUserRoles(currentUser.id);
+    const isAdmin =
+      String(currentUser.role?.id) === RoleEnum.admin.toString() ||
+      String(currentUser.role?.name ?? '').toLowerCase() === 'admin' ||
+      roles.some(
+        (role) =>
+          String(role?.id) === RoleEnum.admin.toString() ||
+          String(role?.name ?? '').toLowerCase() === 'admin',
+      );
+    if (isAdmin) return true;
+
+    const roleIds = [
+      ...new Set([
+        Number(currentUser.role?.id),
+        ...roles.map((role) => Number(role.id)),
+      ]),
+    ].filter((roleId) => Number.isFinite(roleId));
+    const permissions = await this.userRepository.getUserPermissions(
+      currentUser.id,
+      roleIds,
+    );
+    return permissions.some(
+      (permission) =>
+        String(permission?.name ?? '').toLowerCase() === 'tasks.assign',
+    );
   }
 }

@@ -1,6 +1,7 @@
 import {
   Body,
   Controller,
+  Delete,
   Get,
   HttpCode,
   HttpStatus,
@@ -53,6 +54,15 @@ export class TimeLogsController {
     return createResponse(
       'Active timer fetched successfully',
       await this.service.getActiveTimer(user.id),
+    );
+  }
+
+  @Delete('time-logs/timer/active')
+  @SetMetadata('abilities', [['log', 'timesheets']])
+  async resetActiveTimer(@CurrentUser() user: JwtPayloadType) {
+    return createResponse(
+      'Active timer reset successfully',
+      await this.service.resetActiveTimer(user.id),
     );
   }
 
@@ -134,7 +144,6 @@ export class TimeLogsController {
   }
 
   @Post('time-logs/:id/approve')
-  @SetMetadata('abilities', [['approve', 'timesheets']])
   async approve(
     @Param('id') id: string,
     @CurrentUser() user: JwtPayloadType,
@@ -146,7 +155,6 @@ export class TimeLogsController {
   }
 
   @Post('time-logs/:id/reject')
-  @SetMetadata('abilities', [['approve', 'timesheets']])
   async reject(
     @Param('id') id: string,
     @CurrentUser() user: JwtPayloadType,

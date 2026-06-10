@@ -12,6 +12,8 @@ import {
 } from '../../time-logs.repository';
 import { TimeLogEntity } from '../entities/time-log.entity';
 import { TimeLogMapper } from '../mappers/time-log.mapper';
+import { TaskEntity } from '../../../../../tasks/infrastructure/persistence/relational/entities/task.entity';
+import { TaskStatus } from '../../../../../tasks/enums/task-status.enum';
 
 @Injectable()
 export class RelationalTimeLogsRepository implements TimeLogsRepository {
@@ -88,9 +90,61 @@ export class RelationalTimeLogsRepository implements TimeLogsRepository {
     return TimeLogMapper.toDomain(await this.repo.save(entity));
   }
 
+  async createAndStartTask(item: Partial<TimeLog>): Promise<TimeLog> {
+    return this.repo.manager.transaction(async (manager) => {
+      const timeLogRepo = manager.getRepository(TimeLogEntity);
+      const entity = timeLogRepo.create(
+        TimeLogMapper.toPersistence(item) as TimeLogEntity,
+      );
+      const saved = await timeLogRepo.save(entity);
+      await manager
+        .getRepository(TaskEntity)
+        .createQueryBuilder()
+        .update(TaskEntity)
+        .set({ status: TaskStatus.IN_PROGRESS })
+        .where('id = :taskId', { taskId: item.taskId })
+        .andWhere('status = :openStatus', { openStatus: TaskStatus.OPEN })
+        .execute();
+      return TimeLogMapper.toDomain(saved);
+    });
+  }
+
   async update(id: string, item: Partial<TimeLog>): Promise<TimeLog | null> {
     await this.repo.update(id, TimeLogMapper.toPersistence(item) as any);
     return this.findById(id);
+  }
+
+  async updateLogAndTaskStatus(
+    id: string,
+    logUpdate: Partial<TimeLog>,
+    taskStatus: TaskStatus,
+  ): Promise<TimeLog | null> {
+    return this.repo.manager.transaction(async (manager) => {
+      const timeLogRepo = manager.getRepository(TimeLogEntity);
+      const current = await timeLogRepo.findOne({ where: { id } });
+      if (!current) return null;
+
+      await timeLogRepo.update(
+        id,
+        TimeLogMapper.toPersistence(logUpdate) as Partial<TimeLogEntity>,
+      );
+      await manager.getRepository(TaskEntity).update(current.taskId, {
+        status: taskStatus,
+      });
+      const updated = await timeLogRepo.findOne({ where: { id } });
+      return updated ? TimeLogMapper.toDomain(updated) : null;
+    });
+  }
+
+  async removeActiveByUser(userId: string): Promise<TimeLog | null> {
+    const active = await this.findActiveByUser(userId);
+    if (!active) return null;
+
+    await this.repo.softDelete({
+      id: active.id,
+      userId,
+    });
+    return active;
   }
 
   async sumApprovedMinutesByTask(taskId: string): Promise<number> {

@@ -92,6 +92,42 @@ export class NotificationsService {
     this.gateway.emitUnreadCount(userId, await this.repository.countUnread(userId));
   }
 
+  async notifyTimesheetReviewed(opts: {
+    approved: boolean;
+    timeLogId: string;
+    recipientId: string;
+    reviewerId: string;
+    projectId: string;
+    taskId: string;
+    taskTitle?: string;
+    durationMinutes: number;
+    rejectionReason?: string | null;
+  }): Promise<void> {
+    await this.publish({
+      type: opts.approved
+        ? NotificationType.TIMESHEET_APPROVED
+        : NotificationType.TIMESHEET_REJECTED,
+      recipientIds: [opts.recipientId],
+      actorId: opts.reviewerId,
+      resource: { type: 'time-log', id: opts.timeLogId },
+      redirectUrl: `/projects/${opts.projectId}/tasks?task=${opts.taskId}&timeLog=${opts.timeLogId}`,
+      context: {
+        taskId: opts.taskId,
+        taskTitle: opts.taskTitle ?? 'the task',
+        duration: this.formatDuration(opts.durationMinutes),
+        rejectionReason: opts.rejectionReason ?? '',
+      },
+    });
+  }
+
+  private formatDuration(minutes: number): string {
+    const hours = Math.floor(minutes / 60);
+    const remainder = minutes % 60;
+    if (!hours) return `${remainder}m`;
+    if (!remainder) return `${hours}h`;
+    return `${hours}h ${remainder}m`;
+  }
+
   // ── Convenience builders used by other modules ──────────────────────────
 
   async notifyTaskAssigned(opts: {
