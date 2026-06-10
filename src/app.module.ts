@@ -22,12 +22,14 @@ import { ProjectsModule } from './projects/projects.module';
 import { MilestonesModule } from './milestones/milestones.module';
 import { TasksModule } from './tasks/tasks.module';
 import { CommentsModule } from './comments/comments.module';
+import { NotificationsModule } from './notifications/notifications.module';
 import { ProjectCommentsModule } from './project-comments/project-comments.module';
 import { ProjectActivitiesModule } from './project-activities/project-activities.module';
 import { InvitationTemplatesModule } from './invitation-templates/invitation-templates.module';
 import { TaskCommentsModule } from './task-comments/task-comments.module';
 import { ProjectTagsModule } from './project-tags/project-tags.module';
 import { CaslAbilityGuard } from './auth/guards/casl-ability.guard';
+import { TimeLogsModule } from './time-logs/time-logs.module';
 
 const infrastructureDatabaseModule = TypeOrmModule.forRootAsync({
   useClass: TypeOrmConfigService,
@@ -58,11 +60,13 @@ const infrastructureDatabaseModule = TypeOrmModule.forRootAsync({
     MilestonesModule,
     TasksModule,
     CommentsModule,
+    NotificationsModule,
     ProjectCommentsModule,
     ProjectActivitiesModule,
     InvitationTemplatesModule,
     TaskCommentsModule,
     ProjectTagsModule,
+    TimeLogsModule,
     HomeModule,
   ],
   providers: [

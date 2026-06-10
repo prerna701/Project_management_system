@@ -5,10 +5,19 @@ import { PaginationMetaDto } from '../../../common/dto/pagination-response.dto';
 
 export abstract class ProjectsRepository {
   abstract findById(id: string): Promise<Project | null>;
+  abstract findByAssignedTeamId(teamId: string): Promise<Project | null>;
   abstract findVisibleById(
     id: string,
     options: { userId: string; isAdmin: boolean },
   ): Promise<Project | null>;
+  abstract canManageProject(
+    projectId: string,
+    userId: string,
+  ): Promise<boolean>;
+  abstract isProjectParticipant(
+    projectId: string,
+    userId: string,
+  ): Promise<boolean>;
   abstract findManyWithPagination(options: {
     paginationOptions: IPaginationOptions;
     search?: string;

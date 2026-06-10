@@ -21,6 +21,9 @@ export class TeamEntity {
   @Column({ type: 'uuid', nullable: true })
   teamLeadId: string | null;
 
+  @Column({ type: 'uuid', nullable: true })
+  createdBy: string | null;
+
   @Column({ type: 'varchar', nullable: true })
   department: string | null;
 

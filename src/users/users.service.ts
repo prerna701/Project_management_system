@@ -131,9 +131,27 @@ export class UsersService {
   }
 
   async getUserPermissions(userId: string): Promise<any[]> {
+    const user = await this.findById(userId);
+    if (!user) throw new NotFoundException(`User #${userId} not found`);
     const roles = await this.getUserRoles(userId);
-    const roleIds = roles.map((r) => r.id as number);
+    const roleIds = roles.map((role) => role.id as number);
     return this.userRepository.getUserPermissions(userId, roleIds);
+  }
+
+  async getUserDirectPermissions(userId: string): Promise<any[]> {
+    const user = await this.findById(userId);
+    if (!user) throw new NotFoundException(`User #${userId} not found`);
+    return this.userRepository.getUserDirectPermissions(userId);
+  }
+
+  @TryCatch('Failed to save user permissions')
+  async setPermissions(userId: string, permissionIds: number[]): Promise<void> {
+    const user = await this.findById(userId);
+    if (!user) throw new NotFoundException(`User #${userId} not found`);
+    await Promise.all(
+      permissionIds.map((permissionId) => this.permissionsService.findById(permissionId)),
+    );
+    await this.userRepository.setPermissions(userId, permissionIds);
   }
 
   @TryCatch('Failed to generate OTP')

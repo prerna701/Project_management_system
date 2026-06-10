@@ -8,6 +8,7 @@ export class TeamMapper {
     item.name = raw.name;
     item.description = raw.description;
     item.teamLeadId = raw.teamLeadId;
+    item.createdBy = raw.createdBy;
     item.department = raw.department;
     item.isActive = raw.isActive;
     item.createdAt = raw.createdAt;
@@ -22,6 +23,7 @@ export class TeamMapper {
     if (item.name !== undefined) entity.name = item.name;
     if (item.description !== undefined) entity.description = item.description ?? null;
     if (item.teamLeadId !== undefined) entity.teamLeadId = item.teamLeadId ?? null;
+    if (item.createdBy !== undefined) entity.createdBy = item.createdBy ?? null;
     if (item.department !== undefined) entity.department = item.department ?? null;
     if (item.isActive !== undefined) entity.isActive = item.isActive;
     return entity;

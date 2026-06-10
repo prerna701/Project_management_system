@@ -43,6 +43,65 @@ export class RelationalProjectsRepository implements ProjectsRepository {
     return entity ? ProjectMapper.toDomain(entity) : null;
   }
 
+  async findByAssignedTeamId(teamId: string): Promise<Project | null> {
+    const entity = await this.repo.findOne({
+      where: { assignedTeamId: teamId },
+      order: { updatedAt: 'DESC' },
+    });
+    return entity ? ProjectMapper.toDomain(entity) : null;
+  }
+
+  async canManageProject(projectId: string, userId: string): Promise<boolean> {
+    const result = await this.repo.manager.query(
+      `SELECT EXISTS (
+        SELECT 1
+        FROM projects project
+        WHERE project.id = $1
+          AND project."deletedAt" IS NULL
+          AND (
+            project."createdBy" = $2
+            OR project."projectManagerId" = $2
+            OR EXISTS (
+              SELECT 1
+              FROM teams team
+              WHERE team.id = project."assignedTeamId"
+                AND team."deletedAt" IS NULL
+                AND team."teamLeadId" = $2
+            )
+          )
+      ) AS allowed`,
+      [projectId, userId],
+    );
+    return Boolean(result[0]?.allowed);
+  }
+
+  async isProjectParticipant(
+    projectId: string,
+    userId: string,
+  ): Promise<boolean> {
+    const result = await this.repo.manager.query(
+      `SELECT EXISTS (
+        SELECT 1
+        FROM projects project
+        WHERE project.id = $1
+          AND project."deletedAt" IS NULL
+          AND (
+            project."createdBy" = $2
+            OR project."projectManagerId" = $2
+            OR EXISTS (
+              SELECT 1
+              FROM team_members member
+              WHERE member."teamId" = project."assignedTeamId"
+                AND member."userId" = $2
+                AND member."isActive" = true
+            )
+          )
+      ) AS allowed`,
+      [projectId, userId],
+    );
+    return Boolean(result[0]?.allowed);
+  }
+
   async findManyWithPagination(options: {
     paginationOptions: IPaginationOptions;
     search?: string;
@@ -153,7 +212,8 @@ export class RelationalProjectsRepository implements ProjectsRepository {
       .where('project.deletedAt IS NULL')
       .andWhere(
         `(
-          project.projectManagerId = :userId
+          project.createdBy = :userId
+          OR project.projectManagerId = :userId
           OR EXISTS (
             SELECT 1 FROM team_members tm
             WHERE tm."teamId" = project."assignedTeamId"
@@ -177,6 +237,10 @@ export class RelationalProjectsRepository implements ProjectsRepository {
   async findProjectUsers(projectId: string): Promise<{ userId: string; role: string }[]> {
     const rows = await this.repo.manager.query(
       `SELECT DISTINCT u_id AS "userId", role FROM (
+        SELECT p."createdBy" AS u_id, 'project_creator' AS role
+        FROM projects p
+        WHERE p.id = $1 AND p."createdBy" IS NOT NULL
+        UNION ALL
         SELECT p."projectManagerId" AS u_id, 'project_manager' AS role
         FROM projects p
         WHERE p.id = $1 AND p."projectManagerId" IS NOT NULL
@@ -229,13 +293,29 @@ export class RelationalProjectsRepository implements ProjectsRepository {
     query.andWhere(
       `(
         project.visibility = :publicVisibility
+        OR project.createdBy = :userId
         OR project.projectManagerId = :userId
+        OR EXISTS (
+          SELECT 1
+          FROM tasks assigned_task
+          WHERE assigned_task."projectId" = project.id
+            AND assigned_task."deletedAt" IS NULL
+            AND (
+              assigned_task."assigneeId" = :userId
+              OR assigned_task."reporterId" = :userId
+            )
+        )
         OR EXISTS (
           SELECT 1
           FROM team_members team_member
           WHERE team_member."teamId" = project."assignedTeamId"
             AND team_member."userId" = :userId
             AND team_member."isActive" = true
+        )
+        OR EXISTS (
+          SELECT 1 FROM project_clients pc
+          WHERE pc."projectId" = project.id
+            AND pc."userId" = :userId
         )
       )`,
       {

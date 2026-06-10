@@ -12,7 +12,19 @@ export type Actions =
   | 'edit'
   | 'approve'
   | 'reject'
-  | 'assign';
+  | 'assign'
+  | 'add_member'
+  | 'remove_member'
+  | 'transfer_member'
+  | 'assign_team'
+  | 'assign_member'
+  | 'comment'
+  | 'log_time'
+  | 'log'
+  | 'edit_own'
+  | 'submit'
+  | 'view_team'
+  | 'reports';
 
 export type Subjects =
   | 'User'
@@ -30,6 +42,8 @@ export type Subjects =
   | 'milestones'
   | 'teams'
   | 'comments'
+  | 'notifications'
+  | 'timesheets'
   | 'all';
 
 export type AppAbility = MongoAbility<[Actions, Subjects]>;

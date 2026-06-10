@@ -10,13 +10,31 @@ import { UpdateCommentDto } from './dto/update-comment.dto';
 import { CommentableEntity } from './enums/commentable-entity.enum';
 import { IPaginationOptions } from '../common/types/pagination-options';
 import { PaginationMetaDto } from '../common/dto/pagination-response.dto';
+import { NotificationsService } from '../notifications/notifications.service';
+import { TasksService } from '../tasks/tasks.service';
+import { JwtPayloadType } from '../auth/strategies/types/jwt-payload.type';
 
 @Injectable()
 export class CommentsService {
-  constructor(private readonly repository: CommentsRepository) {}
+  constructor(
+    private readonly repository: CommentsRepository,
+    private readonly notificationsService: NotificationsService,
+    private readonly tasksService: TasksService,
+  ) {}
 
-  async create(authorId: string, dto: CreateCommentDto): Promise<Comment> {
-    return this.repository.create({
+  async create(
+    authorId: string,
+    dto: CreateCommentDto,
+    currentUser?: JwtPayloadType,
+  ): Promise<Comment> {
+    if (
+      currentUser &&
+      (dto.entityType === CommentableEntity.TASK ||
+        dto.entityType === CommentableEntity.SUBTASK)
+    ) {
+      await this.tasksService.findById(dto.entityId, currentUser);
+    }
+    const comment = await this.repository.create({
       entityType: dto.entityType,
       entityId: dto.entityId,
       authorId,
@@ -26,6 +44,38 @@ export class CommentsService {
       mentions: dto.mentions ?? [],
       parentId: dto.parentId ?? null,
     });
+
+    // Fire mention notifications (non-blocking)
+    if (dto.mentions?.length) {
+      this.notificationsService
+        .notifyCommentMentions({
+          mentionedUserIds: dto.mentions,
+          authorId,
+          entityType: dto.entityType,
+          entityId: dto.entityId,
+          commentId: comment.id,
+        })
+        .catch(() => undefined);
+    }
+
+    // Fire reply notification when parent comment exists
+    if (dto.parentId) {
+      this.repository.findById(dto.parentId).then((parent) => {
+        if (parent) {
+          this.notificationsService
+            .notifyCommentReply({
+              parentAuthorId: parent.authorId,
+              replyAuthorId: authorId,
+              entityType: dto.entityType,
+              entityId: dto.entityId,
+              commentId: comment.id,
+            })
+            .catch(() => undefined);
+        }
+      });
+    }
+
+    return comment;
   }
 
   async findByEntity(
@@ -80,20 +130,24 @@ export class CommentsService {
     milestoneId: string,
     paginationOptions: IPaginationOptions,
   ): Promise<{ items: Comment[]; meta: PaginationMetaDto }> {
-    return this.findByEntity(CommentableEntity.MILESTONE, milestoneId, paginationOptions, null);
+    return this.findByEntity(CommentableEntity.MILESTONE, milestoneId, paginationOptions);
   }
 
   async findTaskComments(
     taskId: string,
     paginationOptions: IPaginationOptions,
+    currentUser: JwtPayloadType,
   ): Promise<{ items: Comment[]; meta: PaginationMetaDto }> {
-    return this.findByEntity(CommentableEntity.TASK, taskId, paginationOptions, null);
+    await this.tasksService.findById(taskId, currentUser);
+    return this.findByEntity(CommentableEntity.TASK, taskId, paginationOptions);
   }
 
   async findSubtaskComments(
     subtaskId: string,
     paginationOptions: IPaginationOptions,
+    currentUser: JwtPayloadType,
   ): Promise<{ items: Comment[]; meta: PaginationMetaDto }> {
-    return this.findByEntity(CommentableEntity.SUBTASK, subtaskId, paginationOptions, null);
+    await this.tasksService.findById(subtaskId, currentUser);
+    return this.findByEntity(CommentableEntity.SUBTASK, subtaskId, paginationOptions);
   }
 }

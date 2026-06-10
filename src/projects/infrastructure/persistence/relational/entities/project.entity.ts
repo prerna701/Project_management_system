@@ -57,6 +57,9 @@ export class ProjectEntity {
   @Column({ type: 'uuid', nullable: true })
   projectManagerId: string | null;
 
+  @Column({ type: 'uuid', nullable: true })
+  createdBy: string | null;
+
   @Column({ type: 'jsonb', default: [] })
   tags: { id: string; label: string; color: string }[];
 

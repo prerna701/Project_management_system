@@ -8,6 +8,10 @@ import { TaskMapper } from '../mappers/task.mapper';
 import { IPaginationOptions } from '../../../../../common/types/pagination-options';
 import { PaginationMetaDto } from '../../../../../common/dto/pagination-response.dto';
 import { TaskStatus } from '../../../../enums/task-status.enum';
+import {
+  LoggableTaskOption,
+  TaskAccessOptions,
+} from '../../tasks.repository';
 
 @Injectable()
 export class RelationalTasksRepository implements TasksRepository {
@@ -21,6 +25,41 @@ export class RelationalTasksRepository implements TasksRepository {
     return entity ? TaskMapper.toDomain(entity) : null;
   }
 
+  async findLoggableOptions(
+    userId: string,
+    isAdmin: boolean,
+  ): Promise<LoggableTaskOption[]> {
+    const rows = await this.repo.manager.query(
+      `SELECT
+        task.id,
+        task.title,
+        task."projectId",
+        project.name AS "projectName",
+        project.code AS "projectCode"
+      FROM tasks task
+      INNER JOIN projects project
+        ON project.id = task."projectId"
+        AND project."deletedAt" IS NULL
+      WHERE task."deletedAt" IS NULL
+        AND task."parentTaskId" IS NULL
+        AND (
+          $2::boolean = true
+          OR task."assigneeId" = $1
+          OR EXISTS (
+            SELECT 1
+            FROM team_members tm
+            WHERE tm."teamId" = project."assignedTeamId"
+              AND tm."userId" = $1
+              AND tm."isActive" = true
+          )
+        )
+      ORDER BY project.name ASC, task.title ASC`,
+      [userId, isAdmin],
+    );
+
+    return rows as LoggableTaskOption[];
+  }
+
   async findManyWithPagination(options: {
     paginationOptions: IPaginationOptions;
     search?: string;
@@ -28,9 +67,46 @@ export class RelationalTasksRepository implements TasksRepository {
     milestoneId?: string;
     assigneeId?: string;
     parentTaskId?: string | null;
+    access?: TaskAccessOptions;
   }): Promise<{ items: Task[]; meta: PaginationMetaDto }> {
-    const { paginationOptions, search, projectId, milestoneId, assigneeId, parentTaskId } = options;
+    const {
+      paginationOptions,
+      search,
+      projectId,
+      milestoneId,
+      assigneeId,
+      parentTaskId,
+      access,
+    } = options;
     const query = this.repo.createQueryBuilder('task').where('task.deletedAt IS NULL');
+
+    if (access && !access.isAdmin) {
+      query.andWhere(
+        `(
+          task."assigneeId" = :accessUserId
+          OR task."reporterId" = :accessUserId
+          OR EXISTS (
+            SELECT 1
+            FROM projects project
+            WHERE project.id = task."projectId"
+              AND project."deletedAt" IS NULL
+              AND (
+                project.visibility = 'PUBLIC'
+                OR project."createdBy" = :accessUserId
+                OR project."projectManagerId" = :accessUserId
+                OR EXISTS (
+                  SELECT 1
+                  FROM team_members team_member
+                  WHERE team_member."teamId" = project."assignedTeamId"
+                    AND team_member."userId" = :accessUserId
+                    AND team_member."isActive" = true
+                )
+              )
+          )
+        )`,
+        { accessUserId: access.userId },
+      );
+    }
 
     if (projectId) {
       query.andWhere('task.projectId = :projectId', { projectId });

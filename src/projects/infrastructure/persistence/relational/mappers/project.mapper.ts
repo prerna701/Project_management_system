@@ -19,6 +19,7 @@ export class ProjectMapper {
     item.budget = raw.budget;
     item.assignedTeamId = raw.assignedTeamId;
     item.projectManagerId = raw.projectManagerId;
+    item.createdBy = raw.createdBy;
     item.owner = null;          // enriched by service after DB fetch
     item.tags = raw.tags ?? [];
     item.attachments = raw.attachments ?? [];
@@ -47,6 +48,7 @@ export class ProjectMapper {
     if (item.budget !== undefined) entity.budget = item.budget ?? null;
     if (item.assignedTeamId !== undefined) entity.assignedTeamId = item.assignedTeamId ?? null;
     if (item.projectManagerId !== undefined) entity.projectManagerId = item.projectManagerId ?? null;
+    if (item.createdBy !== undefined) entity.createdBy = item.createdBy ?? null;
     if (item.tags !== undefined) entity.tags = item.tags ?? [];
     if (item.attachments !== undefined) entity.attachments = item.attachments ?? [];
     return entity;

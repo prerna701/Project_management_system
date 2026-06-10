@@ -77,7 +77,7 @@ export class CommentsController {
     @CurrentUser() user: JwtPayloadType,
     @Body() dto: CreateCommentDto,
   ) {
-    const item = await this.service.create(user.id, dto);
+    const item = await this.service.create(user.id, dto, user);
     return createResponse('Comment created successfully', item);
   }
 
@@ -165,10 +165,15 @@ export class CommentsController {
   @ApiOperation({ summary: 'List comments on a task' })
   async findTaskComments(
     @Param('taskId') taskId: string,
+    @CurrentUser() user: JwtPayloadType,
     @Query() query: BasePaginationQueryDto,
   ) {
     const paginationOptions = extractPaginationOptions(query);
-    const { items, meta } = await this.service.findTaskComments(taskId, paginationOptions);
+    const { items, meta } = await this.service.findTaskComments(
+      taskId,
+      paginationOptions,
+      user,
+    );
     return createPaginatedResponse('Task comments fetched successfully', items, meta);
   }
 
@@ -193,7 +198,7 @@ export class CommentsController {
       content: body.content,
       mentions: body.mentions,
       parentId: body.parentId,
-    });
+    }, user);
     return createResponse('Comment added successfully', item);
   }
 
@@ -205,10 +210,15 @@ export class CommentsController {
   @ApiOperation({ summary: 'List comments on a subtask' })
   async findSubtaskComments(
     @Param('subtaskId') subtaskId: string,
+    @CurrentUser() user: JwtPayloadType,
     @Query() query: BasePaginationQueryDto,
   ) {
     const paginationOptions = extractPaginationOptions(query);
-    const { items, meta } = await this.service.findSubtaskComments(subtaskId, paginationOptions);
+    const { items, meta } = await this.service.findSubtaskComments(
+      subtaskId,
+      paginationOptions,
+      user,
+    );
     return createPaginatedResponse('Subtask comments fetched successfully', items, meta);
   }
 
@@ -233,7 +243,7 @@ export class CommentsController {
       content: body.content,
       mentions: body.mentions,
       parentId: body.parentId,
-    });
+    }, user);
     return createResponse('Comment added successfully', item);
   }
 }

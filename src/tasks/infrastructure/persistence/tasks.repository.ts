@@ -2,8 +2,25 @@ import { Task } from '../../domain/task';
 import { IPaginationOptions } from '../../../common/types/pagination-options';
 import { PaginationMetaDto } from '../../../common/dto/pagination-response.dto';
 
+export interface TaskAccessOptions {
+  userId: string;
+  isAdmin: boolean;
+}
+
+export interface LoggableTaskOption {
+  id: string;
+  title: string;
+  projectId: string;
+  projectName: string;
+  projectCode: string | null;
+}
+
 export abstract class TasksRepository {
   abstract findById(id: string): Promise<Task | null>;
+  abstract findLoggableOptions(
+    userId: string,
+    isAdmin: boolean,
+  ): Promise<LoggableTaskOption[]>;
   abstract findManyWithPagination(options: {
     paginationOptions: IPaginationOptions;
     search?: string;
@@ -11,6 +28,7 @@ export abstract class TasksRepository {
     milestoneId?: string;
     assigneeId?: string;
     parentTaskId?: string | null;
+    access?: TaskAccessOptions;
   }): Promise<{ items: Task[]; meta: PaginationMetaDto }>;
   abstract create(item: Partial<Task>): Promise<Task>;
   abstract update(id: string, item: Partial<Task>): Promise<Task | null>;

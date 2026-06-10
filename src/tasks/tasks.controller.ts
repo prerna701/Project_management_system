@@ -27,6 +27,8 @@ import { createResponse, createPaginatedResponse } from '../common/utils/base-re
 import { extractQueryOptions } from '../common/helpers/query-options.helper';
 import { API_PAGE_LIMIT } from '../common/constants/common.constant';
 import { MilestonesService } from '../milestones/milestones.service';
+import { CurrentUser } from '../common/decorators/current-user.decorator';
+import { JwtPayloadType } from '../auth/strategies/types/jwt-payload.type';
 import { ApiProperty } from '@nestjs/swagger';
 import { IsNotEmpty, IsUUID } from 'class-validator';
 
@@ -52,9 +54,16 @@ export class TasksController {
   @SetMetadata('abilities', [['browse', 'tasks']])
 
   @HttpCode(HttpStatus.OK)
-  async findAll(@Query() query: BaseQueryDto) {
+  async findAll(
+    @CurrentUser() user: JwtPayloadType,
+    @Query() query: BaseQueryDto,
+  ) {
     const { paginationOptions } = extractQueryOptions(query, API_PAGE_LIMIT);
-    const { items, meta } = await this.service.findAll(paginationOptions, query.search);
+    const { items, meta } = await this.service.findAll(
+      user,
+      paginationOptions,
+      query.search,
+    );
     return createPaginatedResponse('Tasks fetched successfully', items, meta);
   }
 
@@ -62,8 +71,11 @@ export class TasksController {
   @SetMetadata('abilities', [['read', 'tasks']])
 
   @HttpCode(HttpStatus.OK)
-  async findOne(@Param('id') id: string) {
-    const item = await this.service.findById(id);
+  async findOne(
+    @Param('id') id: string,
+    @CurrentUser() user: JwtPayloadType,
+  ) {
+    const item = await this.service.findById(id, user);
     return createResponse('Task fetched successfully', item);
   }
 
@@ -71,9 +83,17 @@ export class TasksController {
   @SetMetadata('abilities', [['browse', 'subtasks']])
 
   @HttpCode(HttpStatus.OK)
-  async findSubtasks(@Param('id') id: string, @Query() query: BaseQueryDto) {
+  async findSubtasks(
+    @Param('id') id: string,
+    @CurrentUser() user: JwtPayloadType,
+    @Query() query: BaseQueryDto,
+  ) {
     const { paginationOptions } = extractQueryOptions(query, API_PAGE_LIMIT);
-    const { items, meta } = await this.service.findSubtasks(id, paginationOptions);
+    const { items, meta } = await this.service.findSubtasks(
+      id,
+      user,
+      paginationOptions,
+    );
     return createPaginatedResponse('Subtasks fetched successfully', items, meta);
   }
 
@@ -82,12 +102,14 @@ export class TasksController {
   @HttpCode(HttpStatus.OK)
   async findByMilestone(
     @Param('milestoneId') milestoneId: string,
+    @CurrentUser() user: JwtPayloadType,
     @Query() query: BaseQueryDto,
   ) {
     await this.milestonesService.findById(milestoneId);
     const { paginationOptions } = extractQueryOptions(query, API_PAGE_LIMIT);
     const { items, meta } = await this.service.findByMilestone(
       milestoneId,
+      user,
       paginationOptions,
       query.search,
     );
@@ -107,12 +129,13 @@ export class TasksController {
   async createForMilestone(
     @Param('milestoneId') milestoneId: string,
     @Body() dto: CreateTaskDto,
+    @CurrentUser() user: JwtPayloadType,
   ) {
     const milestone = await this.milestonesService.findById(milestoneId);
     const item = await this.service.createForMilestone(milestoneId, {
       ...dto,
       projectId: milestone.projectId,
-    });
+    }, user);
     return createResponse('Task created successfully', item);
   }
 
@@ -127,8 +150,12 @@ export class TasksController {
   @SetMetadata('abilities', [['edit', 'tasks']])
 
   @HttpCode(HttpStatus.OK)
-  async update(@Param('id') id: string, @Body() dto: UpdateTaskDto) {
-    const item = await this.service.update(id, dto);
+  async update(
+    @Param('id') id: string,
+    @Body() dto: UpdateTaskDto,
+    @CurrentUser() user: JwtPayloadType,
+  ) {
+    const item = await this.service.update(id, dto, user);
     return createResponse('Task updated successfully', item);
   }
 
@@ -136,8 +163,11 @@ export class TasksController {
   @SetMetadata('abilities', [['delete', 'tasks']])
 
   @HttpCode(HttpStatus.NO_CONTENT)
-  async remove(@Param('id') id: string): Promise<void> {
-    await this.service.remove(id);
+  async remove(
+    @Param('id') id: string,
+    @CurrentUser() user: JwtPayloadType,
+  ): Promise<void> {
+    await this.service.remove(id, user);
   }
 
   @AuditLog({
@@ -150,8 +180,12 @@ export class TasksController {
   @SetMetadata('abilities', [['assign', 'tasks']])
 
   @HttpCode(HttpStatus.OK)
-  async assignTask(@Param('id') id: string, @Body() dto: AssignTaskDto) {
-    const item = await this.service.assignTask(id, dto);
+  async assignTask(
+    @Param('id') id: string,
+    @Body() dto: AssignTaskDto,
+    @CurrentUser() user: JwtPayloadType,
+  ) {
+    const item = await this.service.assignTask(id, dto, user);
     return createResponse('Task assigned successfully', item);
   }
 
@@ -165,8 +199,12 @@ export class TasksController {
   @SetMetadata('abilities', [['add', 'subtasks']])
 
   @HttpCode(HttpStatus.CREATED)
-  async createSubtask(@Param('id') id: string, @Body() dto: CreateSubtaskDto) {
-    const item = await this.service.createSubtask(id, dto);
+  async createSubtask(
+    @Param('id') id: string,
+    @Body() dto: CreateSubtaskDto,
+    @CurrentUser() user: JwtPayloadType,
+  ) {
+    const item = await this.service.createSubtask(id, dto, user);
     return createResponse('Subtask created successfully', item);
   }
 }

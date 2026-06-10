@@ -13,6 +13,8 @@ import { ProjectVisibility } from './enums/project-visibility.enum';
 import { JwtPayloadType } from '../auth/strategies/types/jwt-payload.type';
 import { UsersService } from '../users/users.service';
 import { TasksService } from '../tasks/tasks.service';
+import { TeamsRepository } from '../teams/infrastructure/persistence/teams.repository';
+import { NotificationsService } from '../notifications/notifications.service';
 
 @Injectable()
 export class ProjectsService {
@@ -20,6 +22,8 @@ export class ProjectsService {
     private readonly repository: ProjectsRepository,
     private readonly usersService: UsersService,
     private readonly tasksService: TasksService,
+    private readonly teamsRepository: TeamsRepository,
+    private readonly notificationsService: NotificationsService,
   ) {}
 
   async findAll(
@@ -27,22 +31,22 @@ export class ProjectsService {
     paginationOptions?: IPaginationOptions,
     search?: string,
   ): Promise<{ items: Project[]; meta: PaginationMetaDto }> {
-    const isAdmin = await this.isAdmin(currentUser);
+    const canSeeAll = await this.canSeeAllProjects(currentUser);
     const result = await this.repository.findManyWithPagination({
       paginationOptions: paginationOptions || { page: 1, limit: 10 },
       search,
       userId: currentUser.id,
-      isAdmin,
+      isAdmin: canSeeAll,
     });
     result.items = await Promise.all(result.items.map((p) => this.enrich(p)));
     return result;
   }
 
   async findById(id: string, currentUser: JwtPayloadType): Promise<Project> {
-    const isAdmin = await this.isAdmin(currentUser);
+    const canSeeAll = await this.canSeeAllProjects(currentUser);
     const item = await this.repository.findVisibleById(id, {
       userId: currentUser.id,
-      isAdmin,
+      isAdmin: canSeeAll,
     });
     if (!item) {
       const exists = await this.repository.findById(id);
@@ -67,7 +71,7 @@ export class ProjectsService {
     return project;
   }
 
-  async create(dto: CreateProjectDto): Promise<Project> {
+  async create(dto: CreateProjectDto, createdBy: string): Promise<Project> {
     let code = dto.code?.trim() || null;
     if (!code) {
       const nextNum = (await this.repository.nextCodeNumber()) + 1;
@@ -76,6 +80,7 @@ export class ProjectsService {
     return this.repository.create({
       ...dto,
       code,
+      createdBy,
       priority: dto.priority ?? this.resolvePriority(dto.estimatedHours),
       visibility: dto.visibility ?? ProjectVisibility.PRIVATE,
       status: dto.status ?? ProjectStatus.PLANNING,
@@ -125,9 +130,48 @@ export class ProjectsService {
     await this.repository.remove(id);
   }
 
-  async assignTeam(id: string, dto: AssignTeamDto): Promise<Project> {
+  async assignTeam(
+    id: string,
+    dto: AssignTeamDto,
+    currentUser: JwtPayloadType,
+  ): Promise<Project> {
+    const isAdmin = await this.isAdmin(currentUser);
+    if (
+      !isAdmin &&
+      !(await this.repository.canManageProject(id, currentUser.id))
+    ) {
+      throw new ForbiddenException(
+        'Only the project creator, project manager, team leader, or admin can assign a team',
+      );
+    }
+
+    const team = await this.teamsRepository.findVisibleById(dto.assignedTeamId, {
+      userId: currentUser.id,
+      isAdmin,
+    });
+    if (!team) {
+      throw new ForbiddenException('You are not allowed to assign this team');
+    }
+
     const item = await this.repository.update(id, { assignedTeamId: dto.assignedTeamId });
     if (!item) throw new NotFoundException(`Project #${id} not found`);
+
+    const members = await this.teamsRepository.findMembersByTeamId(team.id);
+    const actor = await this.usersService.findById(currentUser.id);
+    await this.notificationsService.notifyProjectAssigned({
+      projectId: item.id,
+      projectName: item.name,
+      teamId: team.id,
+      teamName: team.name,
+      memberIds: [
+        ...new Set([
+          ...members.map((member) => member.userId),
+          ...(team.teamLeadId ? [team.teamLeadId] : []),
+        ]),
+      ],
+      assignedById: currentUser.id,
+      actorName: this.userName(actor),
+    });
     return item;
   }
 
@@ -174,6 +218,10 @@ export class ProjectsService {
     return this.tasksService.getCompletionPercentage(projectId);
   }
 
+  private async canSeeAllProjects(currentUser: JwtPayloadType): Promise<boolean> {
+    return this.isAdmin(currentUser);
+  }
+
   private async isAdmin(currentUser: JwtPayloadType): Promise<boolean> {
     const tokenRole = currentUser.role;
     if (
@@ -189,5 +237,32 @@ export class ProjectsService {
         String(role?.id) === '1' ||
         String(role?.name ?? '').toLowerCase() === 'admin',
     );
+  }
+
+  async getAssignableTaskUsers(
+    projectId: string,
+    currentUser: JwtPayloadType,
+  ) {
+    await this.findById(projectId, currentUser);
+    const assignments = await this.repository.findProjectUsers(projectId);
+    const users = await Promise.all(
+      assignments.map(async (assignment) => {
+        const user = await this.usersService.findById(assignment.userId);
+        return user
+          ? {
+              id: user.id,
+              firstName: user.firstName,
+              lastName: user.lastName,
+              email: user.email,
+              projectRole: assignment.role,
+            }
+          : null;
+      }),
+    );
+    return users.filter(Boolean);
+  }
+
+  private userName(user: any): string {
+    return [user?.firstName, user?.lastName].filter(Boolean).join(' ') || 'a manager';
   }
 }

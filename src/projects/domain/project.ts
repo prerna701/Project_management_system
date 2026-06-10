@@ -61,6 +61,9 @@ export class Project {
   @ApiPropertyOptional()
   projectManagerId: string | null;
 
+  @ApiPropertyOptional()
+  createdBy: string | null;
+
   @ApiPropertyOptional({ type: () => ProjectOwner })
   owner: ProjectOwner | null;
 

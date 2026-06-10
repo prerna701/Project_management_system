@@ -15,7 +15,9 @@ export abstract class UserRepository {
   abstract update(id: string, payload: Partial<User>): Promise<NullableType<User>>;
   abstract remove(id: string): Promise<void>;
   abstract getUserRoles(userId: string): Promise<any[]>;
+  abstract getUserDirectPermissions(userId: string): Promise<any[]>;
   abstract getUserPermissions(userId: string, roleIds?: number[]): Promise<any[]>;
+  abstract setPermissions(userId: string, permissionIds: number[]): Promise<void>;
   abstract assignRole(userId: string, roleId: number): Promise<void>;
   abstract removeRole(userId: string, roleId: number): Promise<void>;
   abstract assignPermission(userId: string, permissionId: number, resourceId?: string, resourceType?: string): Promise<void>;

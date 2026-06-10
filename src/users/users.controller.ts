@@ -8,6 +8,7 @@ import {
   Param,
   Patch,
   Post,
+  Put,
   Query,
   SetMetadata,
   UseGuards,
@@ -28,6 +29,7 @@ import { UpdateUserDto } from './dto/update-user.dto';
 import { UserQueryDto } from './dto/user-query.dto';
 import { AssignRoleDto } from './dto/assign-role.dto';
 import { AssignPermissionDto } from '../permissions/dto/assign-permission.dto';
+import { SetPermissionsDto } from '../permissions/dto/set-permissions.dto';
 import { User } from './domain/user';
 import { CurrentUser } from '../common/decorators/current-user.decorator';
 import { RolesGuard } from '../roles/roles.guard';
@@ -82,6 +84,24 @@ export class UsersController {
       search: query.search,
     });
     return createPaginatedResponse('Users fetched successfully', data, meta);
+  }
+
+  /**
+   * Returns a minimal user list (id, firstName, lastName) for @mention dropdowns.
+   * Any authenticated user can access this — no admin role or ability required.
+   * Must be declared BEFORE /:id so NestJS routes it as a static path.
+   */
+  @Roles()
+  @Get('for-mention')
+  @HttpCode(HttpStatus.OK)
+  async getUsersForMention(): Promise<any> {
+    const users = await this.usersService.findAll();
+    const data = users.map((u) => ({
+      id: u.id,
+      firstName: u.firstName,
+      lastName: u.lastName,
+    }));
+    return createResponse('Users fetched successfully', data);
   }
 
   @ApiOkResponse({ type: User })
@@ -180,8 +200,20 @@ export class UsersController {
   @HttpCode(HttpStatus.OK)
   @ApiParam({ name: 'id', type: String })
   async getUserPermissions(@Param('id') id: string): Promise<any> {
-    const perms = await this.usersService.getUserPermissions(id);
+    const perms = await this.usersService.getUserDirectPermissions(id);
     return createResponse('User permissions fetched successfully', perms);
+  }
+
+  @Put(':id/permissions')
+  @HttpCode(HttpStatus.OK)
+  @ApiParam({ name: 'id', type: String })
+  @SetMetadata('abilities', [['edit', 'users']])
+  async setUserPermissions(
+    @Param('id') id: string,
+    @Body() dto: SetPermissionsDto,
+  ): Promise<any> {
+    await this.usersService.setPermissions(id, dto.permissionIds);
+    return createResponse('User permissions saved successfully', null);
   }
 
   @Get(':id/projects')

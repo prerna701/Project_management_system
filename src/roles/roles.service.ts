@@ -41,6 +41,25 @@ export class RolesService {
     await this.roleRepository.remove(id);
   }
 
+  async getPermissions(roleId: number): Promise<any[]> {
+    await this.findById(roleId);
+    return this.roleRepository.getPermissions(roleId);
+  }
+
+  async getPermissionMatrix(roleId: number): Promise<any[]> {
+    await this.findById(roleId);
+    return this.roleRepository.getPermissionMatrix(roleId);
+  }
+
+  @TryCatch('Failed to save role permissions')
+  async setPermissions(roleId: number, permissionIds: number[]): Promise<void> {
+    await this.findById(roleId);
+    await Promise.all(
+      permissionIds.map((permissionId) => this.permissionsService.findById(permissionId)),
+    );
+    await this.roleRepository.setPermissions(roleId, permissionIds);
+  }
+
   @TryCatch('Failed to assign permission')
   async assignPermission(roleId: number, permissionId: number): Promise<void> {
     await this.findById(roleId);

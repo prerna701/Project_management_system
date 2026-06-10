@@ -47,6 +47,7 @@ export class ProjectsController {
   ) {}
 
   @Get()
+  @SetMetadata('abilities', [['browse', 'projects']])
   @HttpCode(HttpStatus.OK)
   async findAll(
     @CurrentUser() currentUser: JwtPayloadType,
@@ -62,6 +63,7 @@ export class ProjectsController {
   }
 
   @Get(':id')
+  @SetMetadata('abilities', [['read', 'projects']])
   @HttpCode(HttpStatus.OK)
   async findOne(
     @Param('id') id: string,
@@ -81,8 +83,11 @@ export class ProjectsController {
   @SetMetadata('abilities', [['add', 'projects']])
 
   @HttpCode(HttpStatus.CREATED)
-  async create(@Body() dto: CreateProjectDto) {
-    const item = await this.service.create(dto);
+  async create(
+    @Body() dto: CreateProjectDto,
+    @CurrentUser() currentUser: JwtPayloadType,
+  ) {
+    const item = await this.service.create(dto, currentUser.id);
     return createResponse('Project created successfully', item);
   }
 
@@ -138,17 +143,30 @@ export class ProjectsController {
   @Patch(':id/team')
   @SetMetadata('abilities', [['assign_team', 'projects']])
   @HttpCode(HttpStatus.OK)
-  async assignTeam(@Param('id') id: string, @Body() dto: AssignTeamDto) {
-    const item = await this.service.assignTeam(id, dto);
+  async assignTeam(
+    @Param('id') id: string,
+    @Body() dto: AssignTeamDto,
+    @CurrentUser() currentUser: JwtPayloadType,
+  ) {
+    const item = await this.service.assignTeam(id, dto, currentUser);
     return createResponse('Team assigned to project successfully', item);
   }
 
   @Get(':id/tasks')
   @SetMetadata('abilities', [['browse', 'tasks']])
   @HttpCode(HttpStatus.OK)
-  async findProjectTasks(@Param('id') id: string, @Query() query: BaseQueryDto) {
+  async findProjectTasks(
+    @Param('id') id: string,
+    @CurrentUser() currentUser: JwtPayloadType,
+    @Query() query: BaseQueryDto,
+  ) {
     const { paginationOptions } = extractQueryOptions(query, API_PAGE_LIMIT);
-    const { items, meta } = await this.tasksService.findByProject(id, paginationOptions, query.search);
+    const { items, meta } = await this.tasksService.findByProject(
+      id,
+      currentUser,
+      paginationOptions,
+      query.search,
+    );
     return createPaginatedResponse('Tasks fetched successfully', items, meta);
   }
 
@@ -161,12 +179,16 @@ export class ProjectsController {
   @Post(':id/tasks')
   @SetMetadata('abilities', [['add', 'tasks']])
   @HttpCode(HttpStatus.CREATED)
-  async createProjectTask(@Param('id') id: string, @Body() dto: CreateProjectTaskDto) {
+  async createProjectTask(
+    @Param('id') id: string,
+    @Body() dto: CreateProjectTaskDto,
+    @CurrentUser() currentUser: JwtPayloadType,
+  ) {
     if (dto.milestoneId) {
       await this.ensureMilestoneBelongsToProject(id, dto.milestoneId);
     }
 
-    const item = await this.tasksService.createForProject(id, dto);
+    const item = await this.tasksService.createForProject(id, dto, currentUser);
     return createResponse('Task created successfully', item);
   }
 
@@ -218,6 +240,17 @@ export class ProjectsController {
   async portalUsers(@Param('id') id: string) {
     const items = await this.service.getPortalUsers(id);
     return createResponse('Portal users fetched successfully', items);
+  }
+
+  @Get(':id/assignable-users')
+  @SetMetadata('abilities', [['browse', 'tasks']])
+  @HttpCode(HttpStatus.OK)
+  async assignableTaskUsers(
+    @Param('id') id: string,
+    @CurrentUser() currentUser: JwtPayloadType,
+  ) {
+    const items = await this.service.getAssignableTaskUsers(id, currentUser);
+    return createResponse('Project users fetched successfully', items);
   }
 
   private async ensureMilestoneBelongsToProject(

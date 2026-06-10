@@ -26,6 +26,9 @@ import { AuditLog } from '../audit-logs/audit-log.decorator';
 import { createResponse, createPaginatedResponse } from '../common/utils/base-response';
 import { extractQueryOptions } from '../common/helpers/query-options.helper';
 import { API_PAGE_LIMIT } from '../common/constants/common.constant';
+import { CurrentUser } from '../common/decorators/current-user.decorator';
+import { JwtPayloadType } from '../auth/strategies/types/jwt-payload.type';
+import { AddTeamMembersDto } from './dto/add-team-members.dto';
 
 @UseInterceptors(AuditLogInterceptor)
 @ApiBearerAuth()
@@ -35,13 +38,28 @@ import { API_PAGE_LIMIT } from '../common/constants/common.constant';
 export class TeamsController {
   constructor(private readonly service: TeamsService) {}
 
+  @Get('assignable-users')
+  @SetMetadata('abilities', [['add_member', 'teams']])
+  @HttpCode(HttpStatus.OK)
+  async getAssignableUsers(@Query('search') search?: string) {
+    const users = await this.service.getAssignableUsers(search);
+    return createResponse('Assignable users fetched successfully', users);
+  }
+
   @Get()
   @SetMetadata('abilities', [['browse', 'teams']])
 
   @HttpCode(HttpStatus.OK)
-  async findAll(@Query() query: BaseQueryDto) {
+  async findAll(
+    @CurrentUser() user: JwtPayloadType,
+    @Query() query: BaseQueryDto,
+  ) {
     const { paginationOptions } = extractQueryOptions(query, API_PAGE_LIMIT);
-    const { items, meta } = await this.service.findAll(paginationOptions, query.search);
+    const { items, meta } = await this.service.findAll(
+      user,
+      paginationOptions,
+      query.search,
+    );
     return createPaginatedResponse('Teams fetched successfully', items, meta);
   }
 
@@ -49,8 +67,11 @@ export class TeamsController {
   @SetMetadata('abilities', [['read', 'teams']])
 
   @HttpCode(HttpStatus.OK)
-  async findOne(@Param('id') id: string) {
-    const item = await this.service.findById(id);
+  async findOne(
+    @Param('id') id: string,
+    @CurrentUser() user: JwtPayloadType,
+  ) {
+    const item = await this.service.findById(id, user);
     return createResponse('Team fetched successfully', item);
   }
 
@@ -64,8 +85,11 @@ export class TeamsController {
   @SetMetadata('abilities', [['add', 'teams']])
 
   @HttpCode(HttpStatus.CREATED)
-  async create(@Body() dto: CreateTeamDto) {
-    const item = await this.service.create(dto);
+  async create(
+    @Body() dto: CreateTeamDto,
+    @CurrentUser() user: JwtPayloadType,
+  ) {
+    const item = await this.service.create(dto, user);
     return createResponse('Team created successfully', item);
   }
 
@@ -80,8 +104,12 @@ export class TeamsController {
   @SetMetadata('abilities', [['edit', 'teams']])
 
   @HttpCode(HttpStatus.OK)
-  async update(@Param('id') id: string, @Body() dto: UpdateTeamDto) {
-    const item = await this.service.update(id, dto);
+  async update(
+    @Param('id') id: string,
+    @Body() dto: UpdateTeamDto,
+    @CurrentUser() user: JwtPayloadType,
+  ) {
+    const item = await this.service.update(id, dto, user);
     return createResponse('Team updated successfully', item);
   }
 
@@ -89,16 +117,22 @@ export class TeamsController {
   @SetMetadata('abilities', [['delete', 'teams']])
 
   @HttpCode(HttpStatus.NO_CONTENT)
-  async remove(@Param('id') id: string): Promise<void> {
-    await this.service.remove(id);
+  async remove(
+    @Param('id') id: string,
+    @CurrentUser() user: JwtPayloadType,
+  ): Promise<void> {
+    await this.service.remove(id, user);
   }
 
   @Get(':id/members')
   @SetMetadata('abilities', [['read', 'teams']])
 
   @HttpCode(HttpStatus.OK)
-  async getMembers(@Param('id') id: string) {
-    const members = await this.service.getMembers(id);
+  async getMembers(
+    @Param('id') id: string,
+    @CurrentUser() user: JwtPayloadType,
+  ) {
+    const members = await this.service.getMembers(id, user);
     return createResponse('Team members fetched successfully', members);
   }
 
@@ -112,9 +146,25 @@ export class TeamsController {
   @SetMetadata('abilities', [['add_member', 'teams']])
 
   @HttpCode(HttpStatus.CREATED)
-  async addMember(@Param('id') id: string, @Body() dto: AddTeamMemberDto) {
-    const member = await this.service.addMember(id, dto);
+  async addMember(
+    @Param('id') id: string,
+    @Body() dto: AddTeamMemberDto,
+    @CurrentUser() user: JwtPayloadType,
+  ) {
+    const member = await this.service.addMember(id, dto, user.id, user);
     return createResponse('Member added to team successfully', member);
+  }
+
+  @Post(':id/members/bulk')
+  @SetMetadata('abilities', [['add_member', 'teams']])
+  @HttpCode(HttpStatus.CREATED)
+  async addMembers(
+    @Param('id') id: string,
+    @Body() dto: AddTeamMembersDto,
+    @CurrentUser() user: JwtPayloadType,
+  ) {
+    const members = await this.service.addMembers(id, dto, user);
+    return createResponse('Members added to team successfully', members);
   }
 
   @AuditLog({
@@ -127,8 +177,12 @@ export class TeamsController {
   @SetMetadata('abilities', [['remove_member', 'teams']])
 
   @HttpCode(HttpStatus.NO_CONTENT)
-  async removeMember(@Param('id') id: string, @Param('userId') userId: string): Promise<void> {
-    await this.service.removeMember(id, userId);
+  async removeMember(
+    @Param('id') id: string,
+    @Param('userId') userId: string,
+    @CurrentUser() user: JwtPayloadType,
+  ): Promise<void> {
+    await this.service.removeMember(id, userId, user);
   }
 
   @AuditLog({
@@ -141,8 +195,11 @@ export class TeamsController {
   @SetMetadata('abilities', [['transfer_member', 'teams']])
 
   @HttpCode(HttpStatus.OK)
-  async transferMember(@Body() dto: TransferMemberDto) {
-    const member = await this.service.transferMember(dto);
+  async transferMember(
+    @Body() dto: TransferMemberDto,
+    @CurrentUser() user: JwtPayloadType,
+  ) {
+    const member = await this.service.transferMember(dto, user.id, user);
     return createResponse('Member transferred successfully', member);
   }
 }

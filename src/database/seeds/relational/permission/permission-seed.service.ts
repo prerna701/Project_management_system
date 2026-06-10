@@ -60,12 +60,26 @@ export class PermissionSeedService {
       { name: 'tasks.transfer', label: 'Transfer Tasks', module: 'tasks' },
       { name: 'tasks.comment', label: 'Comment on Tasks', module: 'tasks' },
       { name: 'tasks.log_time', label: 'Log Time on Tasks', module: 'tasks' },
+      // Timesheets
+      { name: 'timesheets.browse', label: 'Browse Own Timesheets', module: 'timesheets' },
+      { name: 'timesheets.log', label: 'Log Time', module: 'timesheets' },
+      { name: 'timesheets.edit_own', label: 'Edit Own Time Logs', module: 'timesheets' },
+      { name: 'timesheets.submit', label: 'Submit Time Logs', module: 'timesheets' },
+      { name: 'timesheets.approve', label: 'Approve Time Logs', module: 'timesheets' },
+      { name: 'timesheets.view_team', label: 'View Team Timesheets', module: 'timesheets' },
+      { name: 'timesheets.reports', label: 'View Timesheet Reports', module: 'timesheets' },
       // Subtasks
       { name: 'subtasks.browse', label: 'Browse Subtasks', module: 'subtasks' },
       { name: 'subtasks.read', label: 'Read Subtasks', module: 'subtasks' },
       { name: 'subtasks.add', label: 'Add Subtasks', module: 'subtasks' },
       { name: 'subtasks.edit', label: 'Edit Subtasks', module: 'subtasks' },
       { name: 'subtasks.delete', label: 'Delete Subtasks', module: 'subtasks' },
+      // Comments
+      { name: 'comments.browse', label: 'Browse Comments', module: 'comments' },
+      { name: 'comments.read', label: 'Read Comments', module: 'comments' },
+      { name: 'comments.add', label: 'Add Comments', module: 'comments' },
+      { name: 'comments.edit', label: 'Edit Comments', module: 'comments' },
+      { name: 'comments.delete', label: 'Delete Comments', module: 'comments' },
     ];
 
     for (const perm of permissions) {

@@ -104,6 +104,26 @@ export class RelationalUserRepository implements UserRepository {
     return userRoles.map((ur) => ur.role);
   }
 
+  async getUserDirectPermissions(userId: string): Promise<any[]> {
+    const assignments = await this.userPermRepo.find({
+      where: { userId },
+      relations: ['permission'],
+    });
+    return assignments.map((assignment) => assignment.permission);
+  }
+
+  async setPermissions(userId: string, permissionIds: number[]): Promise<void> {
+    await this.userPermRepo.manager.transaction(async (manager) => {
+      await manager.delete(UserPermissionEntity, { userId });
+      if (permissionIds.length > 0) {
+        await manager.insert(
+          UserPermissionEntity,
+          permissionIds.map((permissionId) => ({ userId, permissionId })),
+        );
+      }
+    });
+  }
+
   async getUserPermissions(userId: string, roleIds?: number[]): Promise<any[]> {
     const directPerms = await this.userPermRepo.find({
       where: { userId },

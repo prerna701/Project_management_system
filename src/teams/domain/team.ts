@@ -14,6 +14,9 @@ export class Team {
   teamLeadId: string | null;
 
   @ApiProperty({ type: String, nullable: true })
+  createdBy: string | null;
+
+  @ApiProperty({ type: String, nullable: true })
   department: string | null;
 
   @ApiProperty({ type: Boolean })
