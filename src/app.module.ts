@@ -30,6 +30,7 @@ import { TaskCommentsModule } from './task-comments/task-comments.module';
 import { ProjectTagsModule } from './project-tags/project-tags.module';
 import { CaslAbilityGuard } from './auth/guards/casl-ability.guard';
 import { TimeLogsModule } from './time-logs/time-logs.module';
+import { WorkEvidenceModule } from './work-evidence/work-evidence.module';
 
 const infrastructureDatabaseModule = TypeOrmModule.forRootAsync({
   useClass: TypeOrmConfigService,
@@ -67,6 +68,7 @@ const infrastructureDatabaseModule = TypeOrmModule.forRootAsync({
     TaskCommentsModule,
     ProjectTagsModule,
     TimeLogsModule,
+    WorkEvidenceModule,
     HomeModule,
   ],
   providers: [

@@ -20,6 +20,8 @@ import { ProjectsRepository } from '../projects/infrastructure/persistence/proje
 import { UserRepository } from '../users/infrastructure/persistence/user.repository';
 import { JwtPayloadType } from '../auth/strategies/types/jwt-payload.type';
 import { RoleEnum } from '../roles/roles.enum';
+import { WorkEvidenceService } from '../work-evidence/work-evidence.service';
+import { WorkActivityEventType } from '../work-evidence/enums/work-activity-event-type.enum';
 
 @Injectable()
 export class TasksService {
@@ -29,6 +31,7 @@ export class TasksService {
     private readonly userRepository: UserRepository,
     private readonly milestonesService: MilestonesService,
     private readonly notificationsService: NotificationsService,
+    private readonly workEvidenceService: WorkEvidenceService,
   ) {}
 
   async findAll(
@@ -92,6 +95,11 @@ export class TasksService {
       checklist: [],
     });
     this.notifyAssignment(item, currentUser.id);
+    this.recordTaskActivitySafely(
+      item,
+      currentUser.id,
+      WorkActivityEventType.TASK_CREATED,
+    );
     return item;
   }
 
@@ -164,6 +172,11 @@ export class TasksService {
       checklist: [],
     });
     this.notifyAssignment(item, currentUser.id);
+    this.recordTaskActivitySafely(
+      item,
+      currentUser.id,
+      WorkActivityEventType.TASK_CREATED,
+    );
     return item;
   }
 
@@ -206,6 +219,16 @@ export class TasksService {
         .catch(() => undefined);
     }
 
+    this.recordTaskActivitySafely(
+      item,
+      currentUser.id,
+      dto.status && oldTask?.status !== dto.status
+        ? WorkActivityEventType.TASK_STATUS_CHANGED
+        : WorkActivityEventType.TASK_UPDATED,
+      dto.status
+        ? { previousStatus: oldTask?.status, newStatus: dto.status }
+        : {},
+    );
     return item;
   }
 
@@ -242,6 +265,15 @@ export class TasksService {
         .catch(() => undefined);
     }
 
+    this.recordTaskActivitySafely(
+      item,
+      currentUser.id,
+      WorkActivityEventType.TASK_ASSIGNED,
+      {
+        previousAssigneeId: existing.assigneeId,
+        assigneeId: dto.assigneeId,
+      },
+    );
     return item;
   }
 
@@ -277,6 +309,12 @@ export class TasksService {
       checklist: dto.checklist ?? [],
     });
     this.notifyAssignment(item, currentUser.id);
+    this.recordTaskActivitySafely(
+      item,
+      currentUser.id,
+      WorkActivityEventType.SUBTASK_CREATED,
+      { parentTaskId },
+    );
     return item;
   }
 
@@ -304,6 +342,23 @@ export class TasksService {
     if (milestone.projectId !== task.projectId) {
       throw new BadRequestException('Milestone does not belong to the task project');
     }
+  }
+
+  private recordTaskActivitySafely(
+    task: Task,
+    userId: string,
+    type: WorkActivityEventType,
+    metadata: Record<string, unknown> = {},
+  ): void {
+    this.workEvidenceService
+      .recordActivity({
+        userId,
+        projectId: task.projectId,
+        taskId: task.parentTaskId ?? task.id,
+        type,
+        metadata: { affectedTaskId: task.id, ...metadata },
+      })
+      .catch(() => undefined);
   }
 
   private async assertTaskAccess(

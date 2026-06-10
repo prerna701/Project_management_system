@@ -44,6 +44,7 @@ export type Subjects =
   | 'comments'
   | 'notifications'
   | 'timesheets'
+  | 'integrations'
   | 'all';
 
 export type AppAbility = MongoAbility<[Actions, Subjects]>;

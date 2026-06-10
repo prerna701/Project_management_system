@@ -27,6 +27,7 @@ import { StopTimerDto } from './dto/stop-timer.dto';
 import { TimeLogQueryDto } from './dto/time-log-query.dto';
 import { UpdateTimeLogDto } from './dto/update-time-log.dto';
 import { TimeLogsService } from './time-logs.service';
+import { ActivityHeartbeatDto } from '../work-evidence/dto/activity-heartbeat.dto';
 
 @ApiTags('Time Logs')
 @ApiBearerAuth()
@@ -140,6 +141,29 @@ export class TimeLogsController {
     return createResponse(
       'Time log submitted successfully',
       await this.service.submit(id, user),
+    );
+  }
+
+  @Post('time-logs/:id/activity-heartbeat')
+  @SetMetadata('abilities', [['log', 'timesheets']])
+  async activityHeartbeat(
+    @Param('id') id: string,
+    @CurrentUser() user: JwtPayloadType,
+    @Body() dto: ActivityHeartbeatDto,
+  ) {
+    await this.service.recordHeartbeat(id, user, dto);
+    return createResponse('Activity heartbeat recorded successfully', null);
+  }
+
+  @Get('time-logs/:id/evidence')
+  @SetMetadata('abilities', [['view_evidence', 'timesheets']])
+  async evidence(
+    @Param('id') id: string,
+    @CurrentUser() user: JwtPayloadType,
+  ) {
+    return createResponse(
+      'Time log evidence fetched successfully',
+      await this.service.getEvidence(id, user),
     );
   }
 

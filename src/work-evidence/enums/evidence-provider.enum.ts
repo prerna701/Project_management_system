@@ -1,0 +1,7 @@
+export enum EvidenceProvider {
+  TIMER = 'TIMER',
+  GITHUB = 'GITHUB',
+  TASK_ACTIVITY = 'TASK_ACTIVITY',
+  MANUAL_ENTRY = 'MANUAL_ENTRY',
+  CONSISTENCY = 'CONSISTENCY',
+}

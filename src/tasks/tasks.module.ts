@@ -7,6 +7,7 @@ import { MilestonesModule } from '../milestones/milestones.module';
 import { NotificationsModule } from '../notifications/notifications.module';
 import { RelationalProjectsPersistenceModule } from '../projects/infrastructure/persistence/relational/relational-persistence.module';
 import { RelationalUserPersistenceModule } from '../users/infrastructure/persistence/relational/relational-persistence.module';
+import { WorkEvidenceModule } from '../work-evidence/work-evidence.module';
 
 @Module({
   imports: [
@@ -16,6 +17,7 @@ import { RelationalUserPersistenceModule } from '../users/infrastructure/persist
     AuditLogsModule,
     MilestonesModule,
     NotificationsModule,
+    WorkEvidenceModule,
   ],
   controllers: [TasksController],
   providers: [TasksService],

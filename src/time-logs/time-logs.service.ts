@@ -10,6 +10,7 @@ import { JwtPayloadType } from '../auth/strategies/types/jwt-payload.type';
 import { IPaginationOptions } from '../common/types/pagination-options';
 import { ProjectsRepository } from '../projects/infrastructure/persistence/projects.repository';
 import { NotificationsService } from '../notifications/notifications.service';
+import { NotificationType } from '../notifications/enums/notification-type.enum';
 import { RoleEnum } from '../roles/roles.enum';
 import { TasksRepository } from '../tasks/infrastructure/persistence/tasks.repository';
 import { TaskStatus } from '../tasks/enums/task-status.enum';
@@ -26,6 +27,9 @@ import { TimeEntryType } from './enums/time-entry-type.enum';
 import { TimeLogStatus } from './enums/time-log-status.enum';
 import { TimerState } from './enums/timer-state.enum';
 import { WorkType } from './enums/work-type.enum';
+import { WorkEvidenceService } from '../work-evidence/work-evidence.service';
+import { ActivityHeartbeatDto } from '../work-evidence/dto/activity-heartbeat.dto';
+import { WorkActivityEventType } from '../work-evidence/enums/work-activity-event-type.enum';
 import {
   TimeLogFilters,
   TimeLogReportSummary,
@@ -43,6 +47,7 @@ export class TimeLogsService {
     private readonly projectsRepository: ProjectsRepository,
     private readonly userRepository: UserRepository,
     private readonly notificationsService: NotificationsService,
+    private readonly workEvidenceService: WorkEvidenceService,
   ) {}
 
   async startTimer(
@@ -58,7 +63,7 @@ export class TimeLogsService {
     await this.assertCanLogTask(task, user);
     const now = new Date();
     try {
-      return await this.repository.createAndStartTask({
+      const item = await this.repository.createAndStartTask({
         taskId: task.id,
         projectId: task.projectId,
         userId: user.id,
@@ -78,6 +83,8 @@ export class TimeLogsService {
         reviewedAt: null,
         rejectionReason: null,
       });
+      this.recordActivitySafely(item, WorkActivityEventType.TIMER_STARTED);
+      return item;
     } catch (error) {
       if ((error as { code?: string }).code === '23505') {
         throw new ConflictException('You already have an active timer');
@@ -140,7 +147,7 @@ export class TimeLogsService {
       throw new BadRequestException('The timer is already paused');
     }
     const now = new Date();
-    return this.requireUpdated(
+    const item = this.requireUpdated(
       active.id,
       await this.repository.update(active.id, {
         durationMinutes:
@@ -151,6 +158,8 @@ export class TimeLogsService {
         timerState: TimerState.PAUSED,
       }),
     );
+    this.recordActivitySafely(item, WorkActivityEventType.TIMER_PAUSED);
+    return item;
   }
 
   async resumeTimer(userId: string): Promise<TimeLog> {
@@ -158,7 +167,7 @@ export class TimeLogsService {
     if (active.timerState !== TimerState.PAUSED) {
       throw new BadRequestException('The timer is not paused');
     }
-    return this.requireUpdated(
+    const item = this.requireUpdated(
       active.id,
       await this.repository.update(active.id, {
         activeSince: new Date(),
@@ -166,6 +175,8 @@ export class TimeLogsService {
         timerState: TimerState.ACTIVE,
       }),
     );
+    this.recordActivitySafely(item, WorkActivityEventType.TIMER_RESUMED);
+    return item;
   }
 
   async stopTimer(userId: string, dto: StopTimerDto): Promise<TimeLog> {
@@ -183,7 +194,9 @@ export class TimeLogsService {
       timerState: TimerState.STOPPED,
       description: dto.description ?? active.description,
     });
-    return this.requireUpdated(active.id, item);
+    const stopped = this.requireUpdated(active.id, item);
+    this.recordActivitySafely(stopped, WorkActivityEventType.TIMER_STOPPED);
+    return stopped;
   }
 
   async createManual(
@@ -195,7 +208,7 @@ export class TimeLogsService {
     const startedAt = new Date(dto.startedAt);
     const endedAt = new Date(dto.endedAt);
     this.assertValidRange(startedAt, endedAt);
-    return this.repository.create({
+    const item = await this.repository.create({
       taskId: task.id,
       projectId: task.projectId,
       userId: user.id,
@@ -215,6 +228,11 @@ export class TimeLogsService {
       reviewedAt: null,
       rejectionReason: null,
     });
+    this.recordActivitySafely(
+      item,
+      WorkActivityEventType.MANUAL_LOG_CREATED,
+    );
+    return item;
   }
 
   async updateOwnDraft(
@@ -294,7 +312,70 @@ export class TimeLogsService {
         })
         .catch(() => undefined);
     }
+    this.recordActivitySafely(item, WorkActivityEventType.TIME_LOG_SUBMITTED);
+    await this.workEvidenceService.captureForTimeLog(item);
+    const evidence = await this.workEvidenceService.getAssessment(item.id);
+    if (
+      task?.reporterId &&
+      evidence &&
+      evidence.confidence !== 'HIGH'
+    ) {
+      this.notificationsService
+        .createNotification({
+          recipientId: task.reporterId,
+          triggeredById: user.id,
+          type: NotificationType.SYSTEM_NOTIFICATION,
+          title:
+            evidence.confidence === 'LOW_RED_FLAG'
+              ? 'High-risk time log submitted'
+              : 'Time log needs evidence review',
+          message: `${task.title} received an evidence score of ${evidence.overallScore}%.`,
+          entityType: 'time-log',
+          entityId: item.id,
+          redirectUrl: `/projects/${item.projectId}/tasks?task=${item.taskId}&timeLog=${item.id}`,
+          metadata: {
+            confidence: evidence.confidence,
+            score: evidence.overallScore,
+          },
+        })
+        .catch(() => undefined);
+    }
     return item;
+  }
+
+  async recordHeartbeat(
+    id: string,
+    user: JwtPayloadType,
+    dto: ActivityHeartbeatDto,
+  ): Promise<void> {
+    const log = await this.requireById(id);
+    if (log.userId !== user.id) {
+      throw new ForbiddenException(
+        'You can only record activity for your own timer',
+      );
+    }
+    if (log.endedAt || log.timerState === TimerState.STOPPED) {
+      throw new BadRequestException(
+        'Activity can only be recorded for an active timer',
+      );
+    }
+    await this.workEvidenceService.recordHeartbeat(log, dto);
+  }
+
+  async getEvidence(id: string, user: JwtPayloadType) {
+    const log = await this.requireById(id);
+    const task = await this.tasksRepository.findById(log.taskId);
+    const canAccess =
+      log.userId === user.id ||
+      task?.reporterId === user.id ||
+      (await this.isAdmin(user)) ||
+      (await this.projectsRepository.canManageProject(log.projectId, user.id));
+    if (!canAccess) {
+      throw new ForbiddenException(
+        'You are not allowed to view evidence for this time log',
+      );
+    }
+    return this.workEvidenceService.getAssessment(id);
   }
 
   async approve(
@@ -474,6 +555,21 @@ export class TimeLogsService {
     await this.tasksRepository.update(taskId, {
       loggedHours: Number((minutes / 60).toFixed(2)),
     });
+  }
+
+  private recordActivitySafely(
+    log: TimeLog,
+    type: WorkActivityEventType,
+  ): void {
+    this.workEvidenceService
+      .recordActivity({
+        userId: log.userId,
+        projectId: log.projectId,
+        taskId: log.taskId,
+        timeLogId: log.id,
+        type,
+      })
+      .catch(() => undefined);
   }
 
   private async notifyReviewedSafely(

@@ -68,6 +68,11 @@ export class PermissionSeedService {
       { name: 'timesheets.approve', label: 'Approve Time Logs', module: 'timesheets' },
       { name: 'timesheets.view_team', label: 'View Team Timesheets', module: 'timesheets' },
       { name: 'timesheets.reports', label: 'View Timesheet Reports', module: 'timesheets' },
+      { name: 'timesheets.view_evidence', label: 'View Timesheet Evidence', module: 'timesheets' },
+      { name: 'integrations.browse', label: 'Browse Integrations', module: 'integrations' },
+      { name: 'integrations.add', label: 'Add Integrations', module: 'integrations' },
+      { name: 'integrations.edit', label: 'Edit Integrations', module: 'integrations' },
+      { name: 'integrations.delete', label: 'Delete Integrations', module: 'integrations' },
       // Subtasks
       { name: 'subtasks.browse', label: 'Browse Subtasks', module: 'subtasks' },
       { name: 'subtasks.read', label: 'Read Subtasks', module: 'subtasks' },
@@ -87,6 +92,17 @@ export class PermissionSeedService {
       if (!existing) {
         await this.permissionRepo.save(this.permissionRepo.create(perm));
       } else {
+        if (
+          existing.label !== perm.label ||
+          existing.module !== perm.module
+        ) {
+          await this.permissionRepo.save(
+            this.permissionRepo.merge(existing, {
+              label: perm.label,
+              module: perm.module,
+            }),
+          );
+        }
       }
     }
   }

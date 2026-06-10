@@ -13,6 +13,9 @@ import { PaginationMetaDto } from '../common/dto/pagination-response.dto';
 import { NotificationsService } from '../notifications/notifications.service';
 import { TasksService } from '../tasks/tasks.service';
 import { JwtPayloadType } from '../auth/strategies/types/jwt-payload.type';
+import { Task } from '../tasks/domain/task';
+import { WorkEvidenceService } from '../work-evidence/work-evidence.service';
+import { WorkActivityEventType } from '../work-evidence/enums/work-activity-event-type.enum';
 
 @Injectable()
 export class CommentsService {
@@ -20,6 +23,7 @@ export class CommentsService {
     private readonly repository: CommentsRepository,
     private readonly notificationsService: NotificationsService,
     private readonly tasksService: TasksService,
+    private readonly workEvidenceService: WorkEvidenceService,
   ) {}
 
   async create(
@@ -27,12 +31,13 @@ export class CommentsService {
     dto: CreateCommentDto,
     currentUser?: JwtPayloadType,
   ): Promise<Comment> {
+    let relatedTask: Task | null = null;
     if (
       currentUser &&
       (dto.entityType === CommentableEntity.TASK ||
         dto.entityType === CommentableEntity.SUBTASK)
     ) {
-      await this.tasksService.findById(dto.entityId, currentUser);
+      relatedTask = await this.tasksService.findById(dto.entityId, currentUser);
     }
     const comment = await this.repository.create({
       entityType: dto.entityType,
@@ -73,6 +78,22 @@ export class CommentsService {
             .catch(() => undefined);
         }
       });
+    }
+
+    if (relatedTask) {
+      this.workEvidenceService
+        .recordActivity({
+          userId: authorId,
+          projectId: relatedTask.projectId,
+          taskId: relatedTask.parentTaskId ?? relatedTask.id,
+          type: WorkActivityEventType.COMMENT_ADDED,
+          metadata: {
+            commentId: comment.id,
+            isReply: Boolean(dto.parentId),
+            affectedTaskId: relatedTask.id,
+          },
+        })
+        .catch(() => undefined);
     }
 
     return comment;

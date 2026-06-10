@@ -1,5 +1,6 @@
 import { Module } from '@nestjs/common';
 import { NotificationsModule } from '../notifications/notifications.module';
+import { WorkEvidenceModule } from '../work-evidence/work-evidence.module';
 import { RelationalProjectsPersistenceModule } from '../projects/infrastructure/persistence/relational/relational-persistence.module';
 import { TasksModule } from '../tasks/tasks.module';
 import { RelationalUserPersistenceModule } from '../users/infrastructure/persistence/relational/relational-persistence.module';
@@ -13,6 +14,7 @@ import { TimeLogsService } from './time-logs.service';
     RelationalProjectsPersistenceModule,
     RelationalUserPersistenceModule,
     NotificationsModule,
+    WorkEvidenceModule,
     TasksModule,
   ],
   controllers: [TimeLogsController],

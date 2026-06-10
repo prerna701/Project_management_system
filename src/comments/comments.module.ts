@@ -5,6 +5,7 @@ import { RelationalCommentsPersistenceModule } from './infrastructure/persistenc
 import { AuditLogsModule } from '../audit-logs/audit-logs.module';
 import { NotificationsModule } from '../notifications/notifications.module';
 import { TasksModule } from '../tasks/tasks.module';
+import { WorkEvidenceModule } from '../work-evidence/work-evidence.module';
 
 @Module({
   imports: [
@@ -12,6 +13,7 @@ import { TasksModule } from '../tasks/tasks.module';
     AuditLogsModule,
     NotificationsModule,
     TasksModule,
+    WorkEvidenceModule,
   ],
   controllers: [CommentsController],
   providers: [CommentsService],
