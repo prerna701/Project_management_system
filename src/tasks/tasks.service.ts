@@ -78,6 +78,7 @@ export class TasksService {
     const item = await this.repository.create({
       projectId,
       milestoneId: dto.milestoneId ?? null,
+      sprintId: (dto as any).sprintId ?? null,
       title: dto.title,
       description: dto.description ?? null,
       assigneeId,

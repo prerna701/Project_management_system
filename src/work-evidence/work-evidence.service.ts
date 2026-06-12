@@ -1,7 +1,13 @@
-import { Injectable, Logger } from '@nestjs/common';
+import {
+  Injectable,
+  Logger,
+  NotFoundException,
+} from '@nestjs/common';
 import { Octokit } from '@octokit/rest';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
+import { EvidenceReportQueryDto } from './dto/evidence-report-query.dto';
+import { UpdateGitIntegrationDto } from './dto/update-integration.dto';
 import { TimeLog } from '../time-logs/domain/time-log';
 import { TimeEntryType } from '../time-logs/enums/time-entry-type.enum';
 import {
@@ -49,6 +55,36 @@ export class WorkEvidenceService {
     private readonly providerResults: Repository<EvidenceProviderResultEntity>,
     private readonly calculator: WorkTimeCalculatorService,
   ) {}
+
+  // ─── Octokit Helpers ────────────────────────────────────────────────────────
+
+  /** Build an Octokit instance from an already-loaded integration entity. */
+  private buildOctokit(integration: GitIntegrationEntity): Octokit {
+    return new Octokit({
+      auth: process.env[integration.tokenEnvKey],
+      ...(integration.apiBaseUrl ? { baseUrl: integration.apiBaseUrl } : {}),
+    });
+  }
+
+  /**
+   * Load the integration by id, assert the env-var token exists,
+   * and return a ready-to-use Octokit together with the entity.
+   */
+  private async resolveOctokit(integrationId: string) {
+    const integration = await this.integrations.findOne({
+      where: { id: integrationId },
+    });
+    if (!integration)
+      throw new NotFoundException(`Integration #${integrationId} not found`);
+    if (!process.env[integration.tokenEnvKey])
+      throw new NotFoundException(
+        `Environment variable "${integration.tokenEnvKey}" is not set on the server. ` +
+          `Add it to your .env file and restart.`,
+      );
+    return { octokit: this.buildOctokit(integration), integration };
+  }
+
+  // ─── CRUD ────────────────────────────────────────────────────────────────────
 
   async createIntegration(dto: CreateGitIntegrationDto) {
     return this.integrations.save(
@@ -289,6 +325,7 @@ export class WorkEvidenceService {
         provider: 'COMPOSITE',
         status: EvidenceStatus.READY,
         ...git.result,
+        branchName: git.branchName,
         confidence,
         overallScore,
         activeMinutes: activity.activeMinutes,
@@ -316,6 +353,7 @@ export class WorkEvidenceService {
     const unavailable = (warning: string) => ({
       status: 'UNAVAILABLE',
       result: this.emptyGitResult(warning),
+      branchName: null as string | null,
     });
     try {
       const [mapping, identity] = await Promise.all([
@@ -338,24 +376,18 @@ export class WorkEvidenceService {
       if (!integration) {
         return unavailable('The configured Git integration is inactive.');
       }
-      const token = process.env[integration.tokenEnvKey];
-      if (!token) {
+      if (!process.env[integration.tokenEnvKey]) {
         return unavailable(
           `Server environment variable ${integration.tokenEnvKey} is not configured.`,
         );
       }
-
-      const octokit = new Octokit({
-        auth: token,
-        ...(integration.apiBaseUrl
-          ? { baseUrl: integration.apiBaseUrl }
-          : {}),
-      });
+      const octokit = this.buildOctokit(integration);
+      const resolvedBranch = log.branchName ?? mapping.defaultBranch ?? undefined;
       const listed = await octokit.repos.listCommits({
         owner: mapping.owner,
         repo: mapping.repository,
         author: identity.username ?? undefined,
-        sha: mapping.defaultBranch ?? undefined,
+        sha: resolvedBranch,
         since: log.startedAt.toISOString(),
         until: log.endedAt?.toISOString() ?? new Date().toISOString(),
         per_page: 100,
@@ -398,7 +430,7 @@ export class WorkEvidenceService {
         commits,
       );
       const result = this.calculator.calculate(log.durationMinutes, commits);
-      return { status: 'READY', result };
+      return { status: 'READY', result, branchName: resolvedBranch ?? null };
     } catch (error) {
       this.logger.error(
         `Git evidence capture failed for time log ${log.id}`,
@@ -538,6 +570,7 @@ export class WorkEvidenceService {
       provider: 'COMPOSITE',
       status: EvidenceStatus.UNAVAILABLE,
       ...this.emptyGitResult(warning),
+      branchName: log.branchName ?? null,
       overallScore: 0,
       activeMinutes: 0,
       idleMinutes: 0,
@@ -563,5 +596,327 @@ export class WorkEvidenceService {
       },
       ['timeLogId'],
     );
+  }
+
+  // ─── Integration Management ─────────────────────────────────────────────
+
+  async updateIntegration(id: string, dto: UpdateGitIntegrationDto) {
+    const existing = await this.integrations.findOne({ where: { id } });
+    if (!existing) throw new NotFoundException(`Integration #${id} not found`);
+    return this.integrations.save({ ...existing, ...dto });
+  }
+
+  async deleteIntegration(id: string): Promise<void> {
+    const existing = await this.integrations.findOne({ where: { id } });
+    if (!existing) throw new NotFoundException(`Integration #${id} not found`);
+    await this.integrations.remove(existing);
+  }
+
+  // ─── Self-service Identity ───────────────────────────────────────────────
+
+  async getMyIdentity(userId: string) {
+    return this.identities.findOne({ where: { userId } }) ?? null;
+  }
+
+  // ─── Project Repository Getter ───────────────────────────────────────────
+
+  async getProjectRepository(projectId: string) {
+    return this.projectRepositories.findOne({ where: { projectId } }) ?? null;
+  }
+
+  // ─── Repository / Branch Browser ─────────────────────────────────────────
+
+  async listReposForIntegration(integrationId: string) {
+    const { octokit } = await this.resolveOctokit(integrationId);
+    const { data } = await octokit.repos.listForAuthenticatedUser({
+      per_page: 100,
+      sort: 'updated',
+    });
+    return data.map((repo) => ({
+      id: repo.id,
+      fullName: repo.full_name,
+      name: repo.name,
+      owner: repo.owner.login,
+      defaultBranch: repo.default_branch,
+      private: repo.private,
+      url: repo.html_url,
+      updatedAt: repo.updated_at,
+    }));
+  }
+
+  async listBranchesForRepo(
+    integrationId: string,
+    owner: string,
+    repo: string,
+  ) {
+    const { octokit } = await this.resolveOctokit(integrationId);
+    const { data } = await octokit.repos.listBranches({ owner, repo, per_page: 100 });
+    return data.map((branch) => ({
+      name: branch.name,
+      sha: branch.commit.sha,
+      protected: branch.protected,
+    }));
+  }
+
+  async listCommitsForRepo(
+    integrationId: string,
+    owner: string,
+    repo: string,
+    options: {
+      branch?: string;
+      limit?: number;
+      page?: number;
+      since?: string;
+      until?: string;
+      author?: string;
+    },
+  ) {
+    const { octokit } = await this.resolveOctokit(integrationId);
+    const perPage = Math.min(Math.max(options.limit ?? 30, 1), 100);
+    const { data } = await octokit.repos.listCommits({
+      owner,
+      repo,
+      sha: options.branch || undefined,
+      since: options.since || undefined,
+      until: options.until || undefined,
+      author: options.author || undefined,
+      per_page: perPage,
+      page: options.page ?? 1,
+    });
+    return data.map((commit) => ({
+      sha: commit.sha,
+      shortSha: commit.sha.slice(0, 7),
+      message: commit.commit.message.split('\n')[0],
+      author: commit.commit.author?.name ?? commit.author?.login ?? 'Unknown',
+      authorEmail: commit.commit.author?.email ?? null,
+      authorAvatar: commit.author?.avatar_url ?? null,
+      committedAt: commit.commit.author?.date ?? commit.commit.committer?.date ?? null,
+      url: commit.html_url,
+    }));
+  }
+
+  // ─── PR Browser ──────────────────────────────────────────────────────────
+
+  async listPrsForProject(projectId: string, branchName: string) {
+    const mapping = await this.projectRepositories.findOne({
+      where: { projectId, isActive: true },
+    });
+    if (!mapping) {
+      throw new NotFoundException(
+        `No Git repository is mapped to project ${projectId}.`,
+      );
+    }
+    const integration = await this.integrations.findOne({
+      where: { id: mapping.integrationId, isActive: true },
+    });
+    if (!integration) {
+      throw new NotFoundException('The configured Git integration is inactive.');
+    }
+    if (!process.env[integration.tokenEnvKey]) {
+      throw new NotFoundException(
+        `Environment variable "${integration.tokenEnvKey}" is not set on the server.`,
+      );
+    }
+    const octokit = this.buildOctokit(integration);
+    const { data } = await octokit.pulls.list({
+      owner: mapping.owner,
+      repo: mapping.repository,
+      state: 'all',
+      head: `${mapping.owner}:${branchName}`,
+      per_page: 10,
+    });
+    return data.map((pr) => ({
+      number: pr.number,
+      title: pr.title,
+      state: pr.state as 'open' | 'closed',
+      merged: pr.merged_at !== null,
+      mergedAt: pr.merged_at ?? null,
+      createdAt: pr.created_at,
+      url: pr.html_url,
+      author: pr.user?.login ?? null,
+      authorAvatar: pr.user?.avatar_url ?? null,
+      baseBranch: pr.base.ref,
+      headBranch: pr.head.ref,
+    }));
+  }
+
+  // ─── Evidence Report ─────────────────────────────────────────────────────
+
+  async getEvidenceReport(query: EvidenceReportQueryDto) {
+    const qb = this.assessments.manager
+      .createQueryBuilder()
+      .select([
+        'a."timeLogId"',
+        'a."overallScore"',
+        'a."confidence"',
+        'a."recommendation"',
+        'a."loggedMinutes"',
+        'a."gitEstimatedMinutes"',
+        'a."commitCount"',
+        'a."activeMinutes"',
+        'a."idleMinutes"',
+        'a."hasOverlap"',
+        'a."warnings"',
+        'a."firstCommitAt"',
+        'a."lastCommitAt"',
+        'a."filesChanged"',
+        'a."additions"',
+        'a."deletions"',
+        'a."assessedAt"',
+        'tl."userId"',
+        'tl."projectId"',
+        'tl."taskId"',
+        'tl."startedAt"',
+        'tl."endedAt"',
+        'tl."status"',
+        'tl."entryType"',
+        'u."firstName"',
+        'u."lastName"',
+        'u."email" AS "userEmail"',
+        'p.name AS "projectName"',
+        't.title AS "taskTitle"',
+      ])
+      .from('time_log_evidence_assessments', 'a')
+      .innerJoin('task_time_logs', 'tl', 'tl.id = a."timeLogId"')
+      .leftJoin('users', 'u', 'u.id = tl."userId"')
+      .leftJoin('projects', 'p', 'p.id = tl."projectId"')
+      .leftJoin('tasks', 't', 't.id = tl."taskId"')
+      .where('tl."deletedAt" IS NULL');
+
+    if (query.projectId) {
+      qb.andWhere('tl."projectId" = :projectId', {
+        projectId: query.projectId,
+      });
+    }
+    if (query.userId) {
+      qb.andWhere('tl."userId" = :userId', { userId: query.userId });
+    }
+    if (query.from) {
+      qb.andWhere('tl."startedAt" >= :from', { from: new Date(query.from) });
+    }
+    if (query.to) {
+      qb.andWhere('tl."startedAt" <= :to', { to: new Date(query.to) });
+    }
+
+    qb.orderBy('a."assessedAt"', 'DESC').limit(500);
+
+    const rows = await qb.getRawMany();
+
+    const totals = {
+      totalLogs: rows.length,
+      totalLoggedMinutes: rows.reduce((s, r) => s + (r.loggedMinutes ?? 0), 0),
+      totalGitMinutes: rows.reduce(
+        (s, r) => s + (r.gitEstimatedMinutes ?? 0),
+        0,
+      ),
+      totalCommits: rows.reduce((s, r) => s + (r.commitCount ?? 0), 0),
+      totalFilesChanged: rows.reduce((s, r) => s + (r.filesChanged ?? 0), 0),
+      totalAdditions: rows.reduce((s, r) => s + (r.additions ?? 0), 0),
+      totalDeletions: rows.reduce((s, r) => s + (r.deletions ?? 0), 0),
+      highConfidence: rows.filter((r) => r.confidence === 'HIGH').length,
+      mediumConfidence: rows.filter((r) => r.confidence === 'MEDIUM').length,
+      redFlag: rows.filter((r) => r.confidence === 'LOW_RED_FLAG').length,
+      unavailable: rows.filter((r) => r.confidence === 'UNAVAILABLE').length,
+      averageScore:
+        rows.length > 0
+          ? Math.round(
+              rows.reduce((s, r) => s + (r.overallScore ?? 0), 0) / rows.length,
+            )
+          : 0,
+    };
+
+    const byUser = this.groupBy(rows, (r) => r.userId, (group) => ({
+      userId: group[0].userId,
+      name: `${group[0].firstName ?? ''} ${group[0].lastName ?? ''}`.trim() || group[0].userEmail,
+      logCount: group.length,
+      loggedMinutes: group.reduce((s, r) => s + (r.loggedMinutes ?? 0), 0),
+      gitMinutes: group.reduce((s, r) => s + (r.gitEstimatedMinutes ?? 0), 0),
+      commits: group.reduce((s, r) => s + (r.commitCount ?? 0), 0),
+      averageScore:
+        group.length > 0
+          ? Math.round(
+              group.reduce((s, r) => s + (r.overallScore ?? 0), 0) /
+                group.length,
+            )
+          : 0,
+      highConfidence: group.filter((r) => r.confidence === 'HIGH').length,
+      redFlag: group.filter((r) => r.confidence === 'LOW_RED_FLAG').length,
+    }));
+
+    const byProject = this.groupBy(
+      rows,
+      (r) => r.projectId,
+      (group) => ({
+        projectId: group[0].projectId,
+        projectName: group[0].projectName ?? group[0].projectId,
+        logCount: group.length,
+        loggedMinutes: group.reduce((s, r) => s + (r.loggedMinutes ?? 0), 0),
+        gitMinutes: group.reduce(
+          (s, r) => s + (r.gitEstimatedMinutes ?? 0),
+          0,
+        ),
+        commits: group.reduce((s, r) => s + (r.commitCount ?? 0), 0),
+        averageScore:
+          group.length > 0
+            ? Math.round(
+                group.reduce((s, r) => s + (r.overallScore ?? 0), 0) /
+                  group.length,
+              )
+            : 0,
+        highConfidence: group.filter((r) => r.confidence === 'HIGH').length,
+        redFlag: group.filter((r) => r.confidence === 'LOW_RED_FLAG').length,
+      }),
+    );
+
+    return {
+      totals,
+      byUser,
+      byProject,
+      logs: rows.map((r) => ({
+        timeLogId: r.timeLogId,
+        userId: r.userId,
+        userName:
+          `${r.firstName ?? ''} ${r.lastName ?? ''}`.trim() || r.userEmail,
+        projectId: r.projectId,
+        projectName: r.projectName,
+        taskId: r.taskId,
+        taskTitle: r.taskTitle,
+        startedAt: r.startedAt,
+        endedAt: r.endedAt,
+        status: r.status,
+        entryType: r.entryType,
+        loggedMinutes: r.loggedMinutes,
+        gitEstimatedMinutes: r.gitEstimatedMinutes,
+        commitCount: r.commitCount,
+        filesChanged: r.filesChanged,
+        additions: r.additions,
+        deletions: r.deletions,
+        activeMinutes: r.activeMinutes,
+        idleMinutes: r.idleMinutes,
+        overallScore: r.overallScore,
+        confidence: r.confidence,
+        recommendation: r.recommendation,
+        hasOverlap: r.hasOverlap,
+        warnings: r.warnings,
+        firstCommitAt: r.firstCommitAt,
+        lastCommitAt: r.lastCommitAt,
+        assessedAt: r.assessedAt,
+      })),
+    };
+  }
+
+  private groupBy<T, K>(
+    items: T[],
+    keyFn: (item: T) => K,
+    mapFn: (group: T[]) => unknown,
+  ): unknown[] {
+    const map = new Map<K, T[]>();
+    for (const item of items) {
+      const key = keyFn(item);
+      const group = map.get(key) ?? [];
+      group.push(item);
+      map.set(key, group);
+    }
+    return Array.from(map.values()).map(mapFn);
   }
 }

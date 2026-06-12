@@ -45,4 +45,10 @@ export class CreateManualTimeLogDto {
   @IsOptional()
   @IsBoolean()
   isBillable?: boolean;
+
+  @ApiPropertyOptional({ maxLength: 255, description: 'Git branch the work was done on' })
+  @IsOptional()
+  @IsString()
+  @MaxLength(255)
+  branchName?: string;
 }

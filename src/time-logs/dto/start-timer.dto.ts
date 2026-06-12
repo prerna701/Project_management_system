@@ -7,6 +7,7 @@ import {
   IsUUID,
   MaxLength,
 } from 'class-validator';
+
 import { WorkType } from '../enums/work-type.enum';
 
 export class StartTimerDto {
@@ -29,4 +30,10 @@ export class StartTimerDto {
   @IsOptional()
   @IsBoolean()
   isBillable?: boolean;
+
+  @ApiPropertyOptional({ maxLength: 255, description: 'Git branch the user is working on (e.g. feature/fix-auth)' })
+  @IsOptional()
+  @IsString()
+  @MaxLength(255)
+  branchName?: string;
 }

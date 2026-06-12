@@ -23,6 +23,7 @@ export class TimeLogMapper {
     item.reviewedById = raw.reviewedById;
     item.reviewedAt = raw.reviewedAt;
     item.rejectionReason = raw.rejectionReason;
+    item.branchName = raw.branchName;
     item.createdAt = raw.createdAt;
     item.updatedAt = raw.updatedAt;
     item.deletedAt = raw.deletedAt;
@@ -51,6 +52,7 @@ export class TimeLogMapper {
       'reviewedById',
       'reviewedAt',
       'rejectionReason',
+      'branchName',
     ];
     for (const key of keys) {
       if (item[key] !== undefined) {

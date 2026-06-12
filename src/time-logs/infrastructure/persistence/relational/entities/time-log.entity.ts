@@ -79,6 +79,9 @@ export class TimeLogEntity {
   @Column({ type: 'text', nullable: true })
   rejectionReason: string | null;
 
+  @Column({ type: 'varchar', nullable: true })
+  branchName: string | null;
+
   @CreateDateColumn()
   createdAt: Date;
 

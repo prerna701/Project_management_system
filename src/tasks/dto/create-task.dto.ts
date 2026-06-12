@@ -84,4 +84,14 @@ export class CreateTaskDto {
   @IsArray()
   @IsString({ each: true })
   labels?: string[];
+
+  @ApiPropertyOptional({ example: 'sprint-uuid' })
+  @IsOptional()
+  @IsUUID()
+  sprintId?: string;
+
+  @ApiPropertyOptional({ example: 'parent-task-uuid' })
+  @IsOptional()
+  @IsUUID()
+  parentTaskId?: string;
 }

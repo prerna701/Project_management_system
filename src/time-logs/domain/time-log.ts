@@ -63,6 +63,9 @@ export class TimeLog {
   rejectionReason: string | null;
 
   @ApiPropertyOptional()
+  branchName: string | null;
+
+  @ApiPropertyOptional()
   userName?: string;
 
   @ApiPropertyOptional()

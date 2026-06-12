@@ -28,6 +28,9 @@ export class TaskEntity {
   @Column({ type: 'uuid', nullable: true })
   parentTaskId: string | null;
 
+  @Column({ type: 'uuid', nullable: true })
+  sprintId: string | null;
+
   @Column({ type: 'varchar' })
   title: string;
 

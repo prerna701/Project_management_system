@@ -86,6 +86,9 @@ export class TimeLogEvidenceAssessmentEntity {
     url: string | null;
   }>;
 
+  @Column({ type: 'varchar', nullable: true })
+  branchName: string | null;
+
   @Column({ type: 'timestamptz' })
   assessedAt: Date;
 

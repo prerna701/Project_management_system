@@ -40,6 +40,7 @@ export type Subjects =
   | 'project_users'
   | 'project_tags'
   | 'milestones'
+  | 'sprints'
   | 'teams'
   | 'comments'
   | 'notifications'

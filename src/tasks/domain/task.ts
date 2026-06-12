@@ -15,6 +15,9 @@ export class Task {
   @ApiPropertyOptional()
   parentTaskId: string | null;
 
+  @ApiPropertyOptional()
+  sprintId: string | null;
+
   @ApiProperty()
   title: string;
 

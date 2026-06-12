@@ -8,6 +8,7 @@ export class TaskMapper {
     item.projectId = raw.projectId;
     item.milestoneId = raw.milestoneId;
     item.parentTaskId = raw.parentTaskId;
+    item.sprintId = raw.sprintId;
     item.title = raw.title;
     item.description = raw.description;
     item.assigneeId = raw.assigneeId;
@@ -35,6 +36,7 @@ export class TaskMapper {
     if (item.projectId !== undefined) entity.projectId = item.projectId;
     if (item.milestoneId !== undefined) entity.milestoneId = item.milestoneId ?? null;
     if (item.parentTaskId !== undefined) entity.parentTaskId = item.parentTaskId ?? null;
+    if (item.sprintId !== undefined) entity.sprintId = item.sprintId ?? null;
     if (item.title !== undefined) entity.title = item.title;
     if (item.description !== undefined) entity.description = item.description ?? null;
     if (item.assigneeId !== undefined) entity.assigneeId = item.assigneeId ?? null;
